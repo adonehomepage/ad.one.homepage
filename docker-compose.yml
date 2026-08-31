@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: adit-landing-saas-db
+    environment:
+      POSTGRES_USER: adit
+      POSTGRES_PASSWORD: adit_local_dev
+      POSTGRES_DB: adit_landing
+    ports:
+      - "5433:5432"
+    volumes:
+      - adit_landing_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U adit -d adit_landing"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  adit_landing_pgdata:
