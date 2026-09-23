@@ -1,11 +1,12 @@
 import { NextRequest } from "next/server";
 import { handleApiError, jsonOk } from "@/lib/api/http";
-import { assertCron } from "@/lib/jobs/cron";
+import { assertCron, cronSkipPayload, shouldSkipCronWork } from "@/lib/jobs/cron";
 import { purgeProjects } from "@/modules/lifecycle/service";
 
 export async function POST(request: NextRequest) {
   try {
     assertCron(request);
+    if (shouldSkipCronWork()) return jsonOk(cronSkipPayload());
     await purgeProjects();
     return jsonOk({ ok: true });
   } catch (error) {

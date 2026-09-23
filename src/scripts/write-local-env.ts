@@ -36,6 +36,11 @@ STORAGE_BUCKET_PUBLIC=public-assets
 STORAGE_BUCKET_PRIVATE=private-assets
 STORAGE_PUBLIC_BASE_URL=http://localhost:3000/media
 STORAGE_LOCAL_ROOT=./storage
+S3_ENDPOINT=
+S3_REGION=ap-northeast-2
+S3_ACCESS_KEY_ID=
+S3_SECRET_ACCESS_KEY=
+S3_FORCE_PATH_STYLE=false
 
 EMAIL_PROVIDER=sandbox
 KAKAO_MESSAGE_PROVIDER=sandbox
@@ -44,6 +49,8 @@ SMS_FALLBACK_ENABLED=false
 CRON_SECRET=${secret()}
 PII_ENCRYPTION_KEY=${secret()}
 PII_LOOKUP_HMAC_KEY=${secret()}
+DB_POOL_MAX=0
+ERROR_MONITORING_DSN=
 `;
 
 writeFileSync(".env.local", contents);

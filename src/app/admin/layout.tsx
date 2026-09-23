@@ -1,6 +1,7 @@
 import { getAuthContext, isActiveMember } from "@/lib/auth/session";
 import { redirect } from "next/navigation";
 import { AdminShell } from "@/components/layout/admin-shell";
+import { featureFlags } from "@/lib/feature-flags";
 
 export const dynamic = "force-dynamic";
 
@@ -13,8 +14,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!isActiveMember(ctx.member) || ctx.user.status !== "ACTIVE") {
     redirect("/login");
   }
+  const flags = featureFlags();
   return (
-    <AdminShell organizationName={ctx.organization.name} userName={ctx.user.name} role={ctx.member.role}>
+    <AdminShell
+      organizationName={ctx.organization.name}
+      userName={ctx.user.name}
+      role={ctx.member.role}
+      features={{ leadAdmin: flags.leadAdmin }}
+    >
       {children}
     </AdminShell>
   );

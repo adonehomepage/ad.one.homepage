@@ -1,7 +1,7 @@
 import { withStaff } from "@/lib/api/http";
 import { db } from "@/lib/db";
 import { mediaAssets } from "@/lib/db/schema";
-import { saveLocalObject } from "@/lib/storage/local";
+import { saveObject, storageProviderName } from "@/lib/storage";
 import { appConfig } from "@/lib/config";
 import { ApiError } from "@/lib/errors";
 
@@ -15,7 +15,7 @@ export async function POST(request: Request) {
       throw new ApiError("VALIDATION_ERROR", "파일이 필요합니다.");
     }
     const bytes = Buffer.from(await file.arrayBuffer());
-    const saved = await saveLocalObject({
+    const saved = await saveObject({
       bucket: visibility === "public" ? appConfig.storagePublicBucket : appConfig.storagePrivateBucket,
       fileName: file.name,
       mime: file.type,
@@ -27,7 +27,7 @@ export async function POST(request: Request) {
       .values({
         organizationId: ctx.organization.id,
         projectId: projectId || null,
-        storageProvider: "local",
+        storageProvider: storageProviderName(),
         bucketName: saved.bucketName,
         objectKey: saved.objectKey,
         fileName: file.name,

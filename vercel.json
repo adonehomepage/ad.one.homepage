@@ -6,5 +6,6 @@
     { "path": "/api/jobs/purge-projects", "schedule": "0 3 * * *" },
     { "path": "/api/jobs/purge-personal-data", "schedule": "0 4 * * *" },
     { "path": "/api/jobs/aggregate-analytics", "schedule": "10 * * * *" }
-  ]
+  ],
+  "regions": ["icn1"]
 }

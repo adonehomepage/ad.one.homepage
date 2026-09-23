@@ -41,6 +41,11 @@ export const appConfig = {
   storagePrivateBucket: read("STORAGE_BUCKET_PRIVATE", "private-assets"),
   storagePublicBaseUrl: read("STORAGE_PUBLIC_BASE_URL", "http://localhost:3000/media"),
   storageLocalRoot: read("STORAGE_LOCAL_ROOT", "./storage"),
+  s3Endpoint: read("S3_ENDPOINT"),
+  s3Region: read("S3_REGION", "ap-northeast-2"),
+  s3AccessKeyId: read("S3_ACCESS_KEY_ID"),
+  s3SecretAccessKey: read("S3_SECRET_ACCESS_KEY"),
+  s3ForcePathStyle: readBool("S3_FORCE_PATH_STYLE", false),
   emailProvider: read("EMAIL_PROVIDER", "sandbox"),
   emailFrom: read("EMAIL_FROM_ADDRESS"),
   kakaoProvider: read("KAKAO_MESSAGE_PROVIDER", "sandbox"),
@@ -53,10 +58,23 @@ export const appConfig = {
   privacyPolicyUrl: read("PRIVACY_POLICY_URL"),
   piiEncryptionKey: read("PII_ENCRYPTION_KEY"),
   piiLookupHmacKey: read("PII_LOOKUP_HMAC_KEY"),
+  errorMonitoringDsn: read("ERROR_MONITORING_DSN"),
+  dbPoolMax: readInt("DB_POOL_MAX", 0),
 };
 
+/** @deprecated Prefer `isProd` / `isNonProd` from `@/lib/deploy-env`. */
 export function isProductionLike() {
-  return appConfig.env === "production" || appConfig.env === "staging";
+  const env = appConfig.env.toLowerCase();
+  return env === "production" || env === "prod" || env === "staging" || env === "preview" || env === "dev";
+}
+
+/** Vercel/serverless에서는 풀을 작게 유지합니다. */
+export function dbPoolSize() {
+  if (appConfig.dbPoolMax > 0) return appConfig.dbPoolMax;
+  if (process.env.VERCEL) return 1;
+  const env = appConfig.env.toLowerCase();
+  if (env === "preview" || env === "production" || env === "prod" || env === "dev") return 1;
+  return 10;
 }
 
 export function brandLabel() {

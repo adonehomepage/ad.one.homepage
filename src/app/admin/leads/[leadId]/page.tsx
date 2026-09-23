@@ -4,8 +4,10 @@ import { redirect } from "next/navigation";
 import { formatSeoul } from "@/lib/datetime";
 import { LeadNoteForm } from "@/app/admin/leads/lead-actions";
 import { Badge } from "@/components/ui/badge";
+import { assertLeadAdminFeature } from "@/lib/feature-guard";
 
 export default async function LeadDetailPage({ params }: { params: Promise<{ leadId: string }> }) {
+  assertLeadAdminFeature();
   const ctx = await getAuthContext();
   if (!ctx) redirect("/login");
   const { leadId } = await params;

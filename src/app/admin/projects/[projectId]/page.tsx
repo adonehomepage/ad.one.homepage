@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { formatSeoul, formatSeoulDate } from "@/lib/datetime";
 import { appConfig } from "@/lib/config";
 import { ProjectActions } from "@/app/admin/projects/[projectId]/project-actions";
+import { featureFlags } from "@/lib/feature-flags";
 
 export default async function ProjectDetailPage({ params }: { params: Promise<{ projectId: string }> }) {
   const ctx = await getAuthContext();
@@ -14,6 +15,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
   const { projectId } = await params;
   const { project, template } = await getProject(ctx.organization.id, projectId);
   const publicUrl = `${appConfig.publicUrl}/${project.publicSlug}`;
+  const flags = featureFlags();
 
   return (
     <div className="space-y-6">
@@ -34,9 +36,11 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
         <Link href={`/admin/projects/${project.id}/recipients`}>
           <Button variant="ghost">광고주 수신자</Button>
         </Link>
-        <Link href={`/admin/projects/${project.id}/leads`}>
-          <Button variant="ghost">관심고객</Button>
-        </Link>
+        {flags.leadAdmin ? (
+          <Link href={`/admin/projects/${project.id}/leads`}>
+            <Button variant="ghost">관심고객</Button>
+          </Link>
+        ) : null}
         <Link href={`/admin/projects/${project.id}/analytics`}>
           <Button variant="ghost">통계</Button>
         </Link>

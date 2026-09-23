@@ -2,8 +2,10 @@ import { listLeads } from "@/modules/leads/service";
 import { getAuthContext } from "@/lib/auth/session";
 import { redirect } from "next/navigation";
 import { LeadTable } from "@/app/admin/leads/lead-table";
+import { assertLeadAdminFeature } from "@/lib/feature-guard";
 
 export default async function AllLeadsPage({ searchParams }: { searchParams: Promise<{ q?: string; projectId?: string }> }) {
+  assertLeadAdminFeature();
   const ctx = await getAuthContext();
   if (!ctx) redirect("/login");
   const params = await searchParams;

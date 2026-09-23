@@ -3,6 +3,7 @@ import { getAuthContext } from "@/lib/auth/session";
 import { redirect } from "next/navigation";
 import { LeadTable } from "@/app/admin/leads/lead-table";
 import { ExportLeadsButton } from "@/app/admin/leads/lead-actions";
+import { assertLeadAdminFeature } from "@/lib/feature-guard";
 
 export default async function ProjectLeadsPage({
   params,
@@ -11,6 +12,7 @@ export default async function ProjectLeadsPage({
   params: Promise<{ projectId: string }>;
   searchParams: Promise<{ q?: string }>;
 }) {
+  assertLeadAdminFeature();
   const ctx = await getAuthContext();
   if (!ctx) redirect("/login");
   const { projectId } = await params;

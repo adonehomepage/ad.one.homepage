@@ -8,7 +8,7 @@ import { brandLabel } from "@/lib/config";
 const NAV = [
   { href: "/admin", label: "대시보드" },
   { href: "/admin/projects", label: "홈페이지" },
-  { href: "/admin/leads", label: "관심고객" },
+  { href: "/admin/leads", label: "관심고객", feature: "leadAdmin" as const },
   { href: "/admin/notifications", label: "알림 로그" },
   { href: "/admin/members", label: "직원 계정", admin: true },
   { href: "/admin/audit-logs", label: "활동 로그", admin: true },
@@ -20,15 +20,21 @@ export function AdminShell({
   organizationName,
   userName,
   role,
+  features = { leadAdmin: true },
 }: {
   children: React.ReactNode;
   organizationName: string;
   userName: string;
   role: string;
+  features?: { leadAdmin: boolean };
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const items = NAV.filter((item) => !item.admin || role === "SYSTEM_ADMIN");
+  const items = NAV.filter((item) => {
+    if (item.admin && role !== "SYSTEM_ADMIN") return false;
+    if (item.feature === "leadAdmin" && !features.leadAdmin) return false;
+    return true;
+  });
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });

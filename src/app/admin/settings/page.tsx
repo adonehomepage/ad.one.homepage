@@ -5,11 +5,14 @@ import { getAuthContext, isSystemAdmin } from "@/lib/auth/session";
 import { redirect } from "next/navigation";
 import { formatSeoul } from "@/lib/datetime";
 import { appConfig } from "@/lib/config";
+import { getDeployEnv } from "@/lib/deploy-env";
+import { featureFlags } from "@/lib/feature-flags";
 import { SettingsForm } from "@/app/admin/settings/settings-form";
 
 export default async function SettingsPage() {
   const ctx = await getAuthContext();
   if (!ctx) redirect("/login");
+  const flags = featureFlags();
   const [settings] = await db
     .select()
     .from(organizationSettings)
@@ -23,8 +26,16 @@ export default async function SettingsPage() {
       </div>
       <dl className="grid gap-4 rounded-2xl bg-white p-6 md:grid-cols-2">
         <div>
+          <dt className="text-sm text-text-muted">배포 환경</dt>
+          <dd className="mt-1 font-medium">{getDeployEnv()} ({appConfig.env})</dd>
+        </div>
+        <div>
           <dt className="text-sm text-text-muted">관심고객 수집</dt>
           <dd className="mt-1 font-medium">{appConfig.leadCollectionEnabled ? "활성" : "차단(처리 주체 미확정)"}</dd>
+        </div>
+        <div>
+          <dt className="text-sm text-text-muted">관심고객 관리 UI</dt>
+          <dd className="mt-1 font-medium">{flags.leadAdmin ? "노출" : "숨김(prod)"}</dd>
         </div>
         <div>
           <dt className="text-sm text-text-muted">발송 공급자</dt>

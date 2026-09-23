@@ -1,7 +1,7 @@
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
 import * as schema from "@/lib/db/schema";
-import { appConfig } from "@/lib/config";
+import { appConfig, dbPoolSize } from "@/lib/config";
 
 type Db = ReturnType<typeof drizzle<typeof schema>>;
 
@@ -14,7 +14,16 @@ function createDb(): Db {
   if (!appConfig.databaseUrl) {
     throw new Error("DATABASE_URL이 설정되지 않았습니다.");
   }
-  const sql = globalForDb.sql ?? postgres(appConfig.databaseUrl, { max: 10 });
+  const max = dbPoolSize();
+  const sql =
+    globalForDb.sql ??
+    postgres(appConfig.databaseUrl, {
+      max,
+      // Vercel 등 서버리스: prepared statement 재사용 이슈 완화
+      prepare: max > 1,
+      idle_timeout: 20,
+      connect_timeout: 10,
+    });
   if (process.env.NODE_ENV !== "production") {
     globalForDb.sql = sql;
   }

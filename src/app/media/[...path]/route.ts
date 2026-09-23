@@ -1,8 +1,6 @@
 import { NextRequest } from "next/server";
-import { createReadStream } from "node:fs";
-import { stat } from "node:fs/promises";
-import { localFilePath } from "@/lib/storage/local";
 import { appConfig } from "@/lib/config";
+import { readPublicObject, storageProviderName } from "@/lib/storage";
 
 type Params = { params: Promise<{ path: string[] }> };
 
@@ -13,14 +11,21 @@ export async function GET(_: NextRequest, { params }: Params) {
     return new Response("Not found", { status: 404 });
   }
   const objectKey = rest.join("/");
-  const full = localFilePath(bucket, objectKey);
+  if (!objectKey || objectKey.includes("..")) {
+    return new Response("Not found", { status: 404 });
+  }
+
   try {
-    await stat(full);
+    const object = await readPublicObject(bucket, objectKey);
+    if (!object) return new Response("Not found", { status: 404 });
+    return new Response(new Uint8Array(object.bytes), {
+      headers: {
+        "Content-Type": object.contentType,
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "X-Storage-Provider": storageProviderName(),
+      },
+    });
   } catch {
     return new Response("Not found", { status: 404 });
   }
-  const stream = createReadStream(full);
-  return new Response(stream as unknown as ReadableStream, {
-    headers: { "Cache-Control": "public, max-age=31536000, immutable" },
-  });
 }
