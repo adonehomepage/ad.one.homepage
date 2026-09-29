@@ -15,7 +15,8 @@ test("로그인 후 홈페이지를 만들고 발행한다", async ({ page }) =>
   await page.goto("/admin/projects/new");
   await page.getByTestId("project-name").fill(`E2E 현장 ${slug}`);
   await page.getByTestId("project-slug").fill(slug);
-  await page.getByTestId("template-image-focus").check();
+  await page.getByTestId("wizard-next").click();
+  await page.getByTestId("template-image-focus").check({ force: true });
   await page.getByTestId("create-project").click();
   await expect(page).toHaveURL(new RegExp(`/admin/projects/.+/editor`));
 
@@ -24,6 +25,5 @@ test("로그인 후 홈페이지를 만들고 발행한다", async ({ page }) =>
   await expect(page.getByText("발행됨")).toBeVisible({ timeout: 20_000 });
 
   await page.goto(`/${slug}`);
-  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  await expect(page.getByText("E2E 현장")).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("E2E 현장");
 });

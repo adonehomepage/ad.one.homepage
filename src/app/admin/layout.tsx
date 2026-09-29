@@ -2,6 +2,7 @@ import { getAuthContext, isActiveMember } from "@/lib/auth/session";
 import { redirect } from "next/navigation";
 import { AdminShell } from "@/components/layout/admin-shell";
 import { featureFlags } from "@/lib/feature-flags";
+import { brandLabel } from "@/lib/config";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const flags = featureFlags();
   return (
     <AdminShell
+      brandName={brandLabel()}
       organizationName={ctx.organization.name}
       userName={ctx.user.name}
       role={ctx.member.role}

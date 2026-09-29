@@ -3,6 +3,8 @@
 import { useRef, useState } from "react";
 import type { PageSection, PageSnapshot } from "@/types";
 import { trackPublicEvent } from "@/modules/templates/render/tracker";
+import { useCanvasEdit } from "@/modules/editor/edit-context";
+import { InlineText } from "@/modules/editor/inline-text";
 
 export function LeadForm({
   snapshot,
@@ -63,10 +65,24 @@ export function LeadForm({
     event.currentTarget.reset();
   }
 
+  const edit = useCanvasEdit();
   return (
     <div className="mx-auto max-w-xl px-4 py-20">
-      <h2 className="text-3xl font-bold">{String(section.content.heading ?? "관심고객 등록")}</h2>
-      <p className="mt-3 text-text-body">{snapshot.formSettings.intro || String(section.content.intro ?? "")}</p>
+      <h2 className="text-3xl font-bold break-keep">
+        <InlineText
+          value={String(section.content.heading ?? "관심고객등록")}
+          placeholder="제목"
+          onCommit={edit ? (value) => edit.patch(section.id, { ...section.content, heading: value }) : undefined}
+        />
+      </h2>
+      <p className="mt-3 text-text-body">
+        <InlineText
+          value={snapshot.formSettings.intro || String(section.content.intro ?? "")}
+          multiline
+          placeholder="안내 문구"
+          onCommit={edit?.setIntro}
+        />
+      </p>
       <form className="mt-8 space-y-4" onSubmit={onSubmit} onFocus={onFormStart}>
         <input name="website" className="hidden" tabIndex={-1} autoComplete="off" />
         {snapshot.formSettings.fields.filter((field) => field.visible).map((field) => (

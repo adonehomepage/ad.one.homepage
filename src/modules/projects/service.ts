@@ -45,6 +45,7 @@ export async function createProject(input: {
   publicSlug: string;
   templateCode: TemplateCode;
   durationMonths: number;
+  phone?: string;
   assignedManagerId?: string;
 }) {
   const name = input.name.trim();
@@ -80,7 +81,10 @@ export async function createProject(input: {
     })
     .returning();
 
-  const sections = createTemplateSections(input.templateCode, project.id);
+  const sections = createTemplateSections(input.templateCode, project.id).map((section) => {
+    if (section.sectionType !== "hero") return section;
+    return { ...section, content: { ...section.content, headline: name } };
+  });
   await db.insert(projectSections).values(
     sections.map((section) => ({
       id: section.id,
@@ -107,7 +111,7 @@ export async function createProject(input: {
     organizationId: input.organizationId,
     projectId: project.id,
     templateSnapshot: { code: input.templateCode, name: template.name },
-    globalSettings: { phone: "", ctaLabel: "관심고객 등록" },
+    globalSettings: { phone: input.phone?.trim() ?? "", siteName: name, ctaLabel: "관심고객 등록" },
     formSettings: {
       intro: "상담을 원하시면 정보를 남겨 주세요.",
       successMessage: "관심고객 등록이 완료되었습니다.",
@@ -295,9 +299,11 @@ export async function saveDraft(input: {
       }
     }
 
+    const siteName = String((input.globalSettings?.siteName as string | undefined) ?? "").trim();
     await tx
       .update(projects)
       .set({
+        ...(siteName ? { name: siteName } : {}),
         draftRevision: nextRevision,
         hasUnpublishedChanges: true,
         updatedBy: input.userId,
@@ -314,9 +320,10 @@ export async function buildSnapshot(organizationId: string, projectId: string): 
   if (!draft) throw new ApiError("NOT_FOUND", "작업본을 찾을 수 없습니다.", 404);
   const mapped = sections.map(mapSectionRow);
   const privacy = draft.privacySettings as PageSnapshot["privacy"];
+  const settings = draft.globalSettings as Record<string, unknown>;
   return {
     templateCode: template.code as TemplateCode,
-    projectName: project.name,
+    projectName: String(settings.siteName || project.name),
     publicSlug: project.publicSlug,
     phone: String((draft.globalSettings as Record<string, unknown>).phone ?? ""),
     globalSettings: draft.globalSettings as Record<string, unknown>,

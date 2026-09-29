@@ -23,6 +23,7 @@ export async function POST(request: Request) {
     publicSlug: z.string(),
     templateCode: z.enum(TEMPLATE_CODES),
     durationMonths: z.number().int().min(1).default(appConfig.defaultDurationMonths),
+    phone: z.string().optional(),
   }).parse(await request.json());
   return withStaff(async (ctx) => {
     const project = await createProject({
