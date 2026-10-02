@@ -2,6 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["postgres", "bcryptjs", "@aws-sdk/client-s3"],
+  outputFileTracingIncludes: {
+    "/api/projects/[id]/reports/pdf": ["./src/assets/fonts/**/*"],
+  },
   poweredByHeader: false,
   experimental: {
     optimizePackageImports: ["lucide-react", "recharts", "date-fns"],

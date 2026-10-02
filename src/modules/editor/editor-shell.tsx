@@ -8,6 +8,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { LandingPage } from "@/modules/templates/render/landing-page";
 import { Button } from "@/components/ui/button";
 import { PropertyPanel } from "@/modules/editor/property-panel";
+import { uploadProjectFile } from "@/modules/editor/prepare-upload";
 import type { CanvasEdit } from "@/modules/editor/edit-context";
 import type { PageSection, PageSnapshot } from "@/types";
 
@@ -87,6 +88,7 @@ export function EditorShell({ projectId }: { projectId: string }) {
   const timerRef = useRef<number | null>(null);
   const pastRef = useRef<HistoryEntry[]>([]);
   const futureRef = useRef<HistoryEntry[]>([]);
+  const saveTailRef = useRef<Promise<boolean>>(Promise.resolve(true));
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
 
@@ -213,49 +215,67 @@ export function EditorShell({ projectId }: { projectId: string }) {
     setStatus("저장 중");
     if (timerRef.current) window.clearTimeout(timerRef.current);
     timerRef.current = window.setTimeout(() => {
-      void flushSave();
+      enqueueSave();
     }, 700);
   }
 
+  function enqueueSave() {
+    saveTailRef.current = saveTailRef.current.then(() => flushSave());
+    return saveTailRef.current;
+  }
+
   async function flushSave() {
-    const current = dataRef.current;
-    const pending = pendingRef.current;
-    if (!current || !pending) return;
-    pendingRef.current = null;
-    const res = await fetch(`/api/projects/${projectId}/draft`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        expectedRevision: current.project.draftRevision,
-        sections: pending.sections,
-        globalSettings: pending.extra?.globalSettings ?? current.draft.globalSettings,
-        formSettings: pending.extra?.formSettings ?? current.draft.formSettings,
-        seoSettings: pending.extra?.seoSettings ?? current.draft.seoSettings,
-        privacySettings: pending.extra?.privacySettings ?? current.draft.privacySettings,
-      }),
-    });
-    const json = await res.json();
-    if (!res.ok) {
-      pendingRef.current = pending;
-      setStatus("저장 실패");
-      setError(json.message ?? "저장에 실패했습니다.");
-      return;
+    while (pendingRef.current && dataRef.current) {
+      const current = dataRef.current;
+      const pending = pendingRef.current;
+      pendingRef.current = null;
+      let json: { message?: string; revision?: number } = {};
+      let res: Response;
+      try {
+        res = await fetch(`/api/projects/${projectId}/draft`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            expectedRevision: current.project.draftRevision,
+            sections: pending.sections,
+            globalSettings: pending.extra?.globalSettings ?? current.draft.globalSettings,
+            formSettings: pending.extra?.formSettings ?? current.draft.formSettings,
+            seoSettings: pending.extra?.seoSettings ?? current.draft.seoSettings,
+            privacySettings: pending.extra?.privacySettings ?? current.draft.privacySettings,
+          }),
+        });
+        json = await res.json();
+      } catch {
+        if (!pendingRef.current) pendingRef.current = pending;
+        setStatus("저장 실패");
+        setError("저장에 실패했습니다.");
+        return false;
+      }
+      if (!res.ok || typeof json.revision !== "number") {
+        if (!pendingRef.current) pendingRef.current = pending;
+        setStatus("저장 실패");
+        setError(json.message ?? "저장에 실패했습니다.");
+        return false;
+      }
+      const revision = json.revision;
+      const latest = dataRef.current ?? current;
+      const nextData: DraftResponse = {
+        ...latest,
+        project: { ...latest.project, draftRevision: revision, hasUnpublishedChanges: true },
+        draft: { ...latest.draft, revision },
+      };
+      dataRef.current = nextData;
+      setData(nextData);
+      setStatus("미발행 변경사항 있음");
+      setError("");
     }
-    const nextData: DraftResponse = {
-      ...current,
-      project: { ...current.project, draftRevision: json.revision, hasUnpublishedChanges: true },
-      sections: pending.sections,
-      draft: { ...current.draft, ...pending.extra, revision: json.revision },
-    };
-    dataRef.current = nextData;
-    setData(nextData);
-    setStatus("미발행 변경사항 있음");
-    setError("");
-    if (pendingRef.current) void flushSave();
+    return true;
   }
 
   async function publish() {
-    await flushSave();
+    if (timerRef.current) window.clearTimeout(timerRef.current);
+    const saved = await enqueueSave();
+    if (!saved) return;
     setStatus("발행 중");
     const res = await fetch(`/api/projects/${projectId}/publish`, { method: "POST", body: JSON.stringify({}) });
     const json = await res.json();
@@ -306,13 +326,14 @@ export function EditorShell({ projectId }: { projectId: string }) {
         persist(current.sections, { formSettings: { ...current.draft.formSettings, intro } });
       },
       upload: async (file) => {
-        const form = new FormData();
-        form.append("file", file);
-        form.append("projectId", projectId);
-        const res = await fetch("/api/uploads", { method: "POST", body: form });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.message ?? "업로드에 실패했습니다.");
-        return json.url as string;
+        setError("");
+        try {
+          return await uploadProjectFile(projectId, file);
+        } catch (caught) {
+          const message = caught instanceof Error ? caught.message : "업로드에 실패했습니다.";
+          setError(message);
+          throw caught;
+        }
       },
     };
   }, [editing, data, projectId]);

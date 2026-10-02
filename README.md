@@ -3,8 +3,8 @@
 현재 폴더의 독립 프로젝트입니다. 직방 `red-ads-portal` 코드·시크릿은 재사용하지 않습니다.  
 배포·인프라 패턴만 참고할 때는 [docs/zigbang-infra-request-prompt.md](docs/zigbang-infra-request-prompt.md)로 요약 MD를 요청하세요.
 
-Git은 **`main`만** 사용합니다. `deploy`/`dev` 브랜치는 없습니다.  
-원격: `https://github.com/adonehomepage/ad.one.homepage`
+원격: `https://github.com/adonehomepage/ad.one.homepage`  
+운영은 `main`, 개발 점검은 `deploy/dev` 입니다.
 
 ## 로컬 실행
 
@@ -41,10 +41,11 @@ npm run dev
 
 요약:
 
-1. Vercel에 GitHub 저장소 연결 (`main` → Production)
-2. Preview / Production에 **서로 다른** `DATABASE_URL`·시크릿 설정
-3. 배포 환경은 `STORAGE_PROVIDER=s3` (로컬 디스크 불가)
-4. `LEAD_COLLECTION_ENABLED`와 실알림은 확정 전까지 끄기
+1. Vercel에 GitHub 저장소 연결 (`main` → Production, `deploy/dev` → Preview)
+2. Preview / Production에 **서로 다른** `DATABASE_URL`·시크릿·R2 버킷
+3. 배포 환경은 `STORAGE_PROVIDER=s3`. 공개 URL은 각 사이트의 `/media` 이고, R2 버킷 자체는 비공개입니다.
+4. 운영 https://ad-one-homepage.vercel.app · 개발 https://ad-one-homepage-dev.vercel.app
+5. `LEAD_COLLECTION_ENABLED`와 실알림은 확정 전까지 끄기
 
 ## 출시 전 확정 필요
 

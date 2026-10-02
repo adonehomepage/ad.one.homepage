@@ -46,6 +46,29 @@ export function localFilePath(bucket: string, objectKey: string) {
   return path.join(appConfig.storageLocalRoot, bucket, objectKey);
 }
 
+export function contentTypeFromObjectKey(objectKey: string) {
+  const extension = objectKey.split(".").pop()?.toLowerCase();
+  switch (extension) {
+    case "jpg":
+    case "jpeg":
+      return "image/jpeg";
+    case "png":
+      return "image/png";
+    case "webp":
+      return "image/webp";
+    case "gif":
+      return "image/gif";
+    case "mp4":
+      return "video/mp4";
+    case "webm":
+      return "video/webm";
+    case "pdf":
+      return "application/pdf";
+    default:
+      return "application/octet-stream";
+  }
+}
+
 export async function deleteLocalObject(bucket: string, objectKey: string) {
   await unlink(localFilePath(bucket, objectKey)).catch(() => undefined);
 }

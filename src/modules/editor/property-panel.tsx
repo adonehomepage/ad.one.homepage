@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Textarea } from "@/components/ui/input";
+import { uploadProjectFile } from "@/modules/editor/prepare-upload";
 import type { PageSection, PageSnapshot, ProjectPrivacyConfig } from "@/types";
 
 type DraftPatch = {
@@ -26,14 +28,17 @@ export function PropertyPanel({
   onPhoneChange: (phone: string) => void;
   onDraftChange: (patch: DraftPatch) => void;
 }) {
+  const [uploadError, setUploadError] = useState("");
+
   async function upload(file: File) {
-    const form = new FormData();
-    form.append("file", file);
-    form.append("projectId", projectId);
-    const res = await fetch("/api/uploads", { method: "POST", body: form });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.message ?? "업로드에 실패했습니다.");
-    return json.url as string;
+    setUploadError("");
+    try {
+      return await uploadProjectFile(projectId, file);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "업로드에 실패했습니다.";
+      setUploadError(message);
+      return null;
+    }
   }
 
   function patchContent(patch: Record<string, unknown>) {
@@ -42,6 +47,7 @@ export function PropertyPanel({
 
   return (
     <div className="space-y-4">
+      {uploadError ? <p className="text-sm text-danger">{uploadError}</p> : null}
       <PageSettings snapshot={snapshot} onDraftChange={onDraftChange} />
       <div className="border-t border-border pt-4">
         <p className="mb-3 text-xs font-medium text-text-muted">선택 섹션</p>
@@ -142,7 +148,9 @@ export function PropertyPanel({
               onChange={async (event) => {
                 const file = event.target.files?.[0];
                 if (!file) return;
-                patchContent({ mapImageUrl: await upload(file) });
+                const mapImageUrl = await upload(file);
+                if (!mapImageUrl) return;
+                patchContent({ mapImageUrl });
               }}
             />
           </Field>
@@ -319,21 +327,32 @@ function HeroFields({
           onChange={async (event) => {
             const file = event.target.files?.[0];
             if (!file) return;
-            patchContent({ imageUrl: await upload(file), mediaMode: "image" });
+            const imageUrl = await upload(file);
+            if (!imageUrl) return;
+            patchContent({ imageUrl, mediaMode: "image" });
           }}
         />
       </Field>
       {snapshot.templateCode === "video-ready" ? (
         <>
-          <Field label="히어로 영상">
+          <Field label="히어로 영상" hint="3.5MB를 넘는 영상은 주소로 넣으세요.">
             <input
               type="file"
               accept="video/mp4,video/webm"
               onChange={async (event) => {
                 const file = event.target.files?.[0];
                 if (!file) return;
-                patchContent({ videoUrl: await upload(file), mediaMode: "video" });
+                const videoUrl = await upload(file);
+                if (!videoUrl) return;
+                patchContent({ videoUrl, mediaMode: "video" });
               }}
+            />
+          </Field>
+          <Field label="영상 주소">
+            <Input
+              value={String(selected.content.videoUrl ?? "")}
+              placeholder="https://"
+              onChange={(event) => patchContent({ videoUrl: event.target.value, mediaMode: event.target.value ? "video" : "image" })}
             />
           </Field>
           <Field label="포스터 이미지">
@@ -343,7 +362,9 @@ function HeroFields({
               onChange={async (event) => {
                 const file = event.target.files?.[0];
                 if (!file) return;
-                patchContent({ posterUrl: await upload(file) });
+                const posterUrl = await upload(file);
+                if (!posterUrl) return;
+                patchContent({ posterUrl });
               }}
             />
           </Field>
@@ -438,6 +459,7 @@ function GalleryFields({
             const file = input.files?.[0];
             if (!file) return;
             const url = await upload(file);
+            if (!url) return;
             patchContent({ images: [...images, { url, alt: file.name }] });
           };
           input.click();
@@ -491,6 +513,7 @@ function FloorplanFields({
                   const file = event.target.files?.[0];
                   if (!file) return;
                   const imageUrl = await upload(file);
+                  if (!imageUrl) return;
                   patchContent({ types: types.map((row, i) => (i === index ? { ...row, imageUrl } : row)) });
                 }}
               />

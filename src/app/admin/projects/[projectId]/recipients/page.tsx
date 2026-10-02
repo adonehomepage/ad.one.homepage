@@ -89,7 +89,7 @@ export default function RecipientsPage({ params }: { params: Promise<{ projectId
             <div>
               <p className="font-medium">{item.name}</p>
               <p className="text-sm text-text-muted">
-                {item.preferredChannel} · {item.phone || item.email}
+                {{ EMAIL: "이메일", KAKAO_ALIMTALK: "카카오 알림톡" }[item.preferredChannel] ?? item.preferredChannel} · {item.phone || item.email}
               </p>
             </div>
             <div className="flex items-center gap-2">

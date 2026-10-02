@@ -5,6 +5,7 @@ import { leads, notificationJobs, projects } from "@/lib/db/schema";
 import { getAuthContext } from "@/lib/auth/session";
 import { redirect } from "next/navigation";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatSeoulDate } from "@/lib/datetime";
 import { getOrganizationTrend } from "@/modules/analytics/service";
@@ -61,7 +62,7 @@ export default async function DashboardPage() {
         <h1 className="text-3xl font-bold">대시보드</h1>
         <p className="mt-2 text-text-body">실제 운영 데이터만 표시합니다. 샘플 수치는 넣지 않습니다.</p>
       </div>
-      <div className="grid gap-4 md:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {cards.map((card) => (
           <Link key={card.label} href={card.href} className="rounded-2xl bg-white p-5 shadow-sm">
             <p className="text-sm text-text-muted">{card.label}</p>
@@ -82,7 +83,7 @@ export default async function DashboardPage() {
             {recentProjects.map((project) => (
               <li key={project.id} className="flex justify-between text-sm">
                 <Link href={`/admin/projects/${project.id}`}>{project.name}</Link>
-                <span className="text-text-muted">{project.status}</span>
+                <Badge value={project.status} />
               </li>
             ))}
           </ul>

@@ -30,7 +30,7 @@ function HeroImageButton({ section, imageUrl }: { section: PageSection; imageUrl
         onChange={(event) => {
           const file = event.target.files?.[0];
           if (!file) return;
-          void edit.upload(file).then((url) => edit.patch(section.id, { ...section.content, imageUrl: url, mediaMode: "image" }));
+          void edit.upload(file).then((url) => edit.patch(section.id, { ...section.content, imageUrl: url, mediaMode: "image" })).catch(() => undefined);
         }}
       />
     </label>
@@ -397,7 +397,7 @@ function Gallery({ section }: { section: PageSection }) {
                 if (!file) return;
                 void edit.upload(file).then((url) => {
                   edit.patch(section.id, { ...section.content, images: [...images, { url, alt: file.name }] });
-                });
+                }).catch(() => undefined);
               }}
             />
           </label>
@@ -439,7 +439,7 @@ function Floorplan({ section }: { section: PageSection }) {
                     if (!file) return;
                     void edit.upload(file).then((url) => {
                       setTypes(types.map((row, itemIndex) => (itemIndex === index ? { ...row, imageUrl: url } : row)));
-                    });
+                    }).catch(() => undefined);
                   }}
                 />
               </label>
@@ -505,7 +505,7 @@ function Directions({ section, phone }: { section: PageSection; phone: string })
               onChange={(event) => {
                 const file = event.target.files?.[0];
                 if (!file) return;
-                void edit.upload(file).then((url) => edit.patch(section.id, { ...section.content, mapImageUrl: url }));
+                void edit.upload(file).then((url) => edit.patch(section.id, { ...section.content, mapImageUrl: url })).catch(() => undefined);
               }}
             />
           </label>

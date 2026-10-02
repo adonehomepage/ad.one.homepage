@@ -1,4 +1,13 @@
 import { describe, expect, it } from "vitest";
+import { contentTypeFromObjectKey } from "@/lib/storage/local";
+
+describe("stored file types", () => {
+  it("keeps image and video types from the file name", () => {
+    expect(contentTypeFromObjectKey("2026-10-02/abc-photo.jpg")).toBe("image/jpeg");
+    expect(contentTypeFromObjectKey("clip.webm")).toBe("video/webm");
+    expect(contentTypeFromObjectKey("note.bin")).toBe("application/octet-stream");
+  });
+});
 
 describe("storage provider selection", () => {
   it("defaults to local when STORAGE_PROVIDER is unset", async () => {

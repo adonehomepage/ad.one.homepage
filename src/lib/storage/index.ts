@@ -29,7 +29,7 @@ export async function readPublicObject(bucket: string, objectKey: string) {
     return readS3Object(bucket, objectKey);
   }
   const { readFile } = await import("node:fs/promises");
-  const { localFilePath } = await import("@/lib/storage/local");
+  const { contentTypeFromObjectKey, localFilePath } = await import("@/lib/storage/local");
   const bytes = await readFile(localFilePath(bucket, objectKey));
-  return { bytes, contentType: "application/octet-stream" };
+  return { bytes, contentType: contentTypeFromObjectKey(objectKey) };
 }

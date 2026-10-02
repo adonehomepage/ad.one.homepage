@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import fontkit from "@pdf-lib/fontkit";
 import { PDFDocument, rgb } from "pdf-lib";
 import { getProjectAnalytics } from "@/modules/analytics/service";
 import { getProject } from "@/modules/projects/service";
@@ -7,8 +8,29 @@ import { formatSeoulDate } from "@/lib/datetime";
 import { brandLabel } from "@/lib/config";
 import { writeAudit } from "@/modules/audit/service";
 
-async function loadFontBytes(fileName: string) {
-  return readFile(path.join(process.cwd(), "src", "assets", "fonts", fileName));
+const regularFontPath = path.join(process.cwd(), "src/assets/fonts/Pretendard-Regular.ttf");
+const boldFontPath = path.join(process.cwd(), "src/assets/fonts/Pretendard-Bold.ttf");
+
+async function openReportPdf() {
+  const doc = await PDFDocument.create();
+  doc.registerFontkit(fontkit);
+  const regular = await doc.embedFont(await readFile(regularFontPath), { subset: true });
+  const bold = await doc.embedFont(await readFile(boldFontPath), { subset: true });
+  return { doc, regular, bold };
+}
+
+export async function renderHangulPdfSample(title: string) {
+  const { doc, regular, bold } = await openReportPdf();
+  const page = doc.addPage([595, 842]);
+  page.drawText(title, { x: 48, y: 760, size: 22, font: bold, color: rgb(0.098, 0.122, 0.157) });
+  page.drawText("이 보고서에는 개인정보가 포함되지 않습니다.", {
+    x: 48,
+    y: 72,
+    size: 9,
+    font: regular,
+    color: rgb(0.306, 0.349, 0.408),
+  });
+  return doc.save();
 }
 
 export async function buildProjectPdf(input: {
@@ -28,10 +50,8 @@ export async function buildProjectPdf(input: {
     resourceId: input.projectId,
   });
 
-  const doc = await PDFDocument.create();
+  const { doc, regular, bold } = await openReportPdf();
   const page = doc.addPage([595, 842]);
-  const regular = await doc.embedFont(await loadFontBytes("Pretendard-Regular.ttf"), { subset: false });
-  const bold = await doc.embedFont(await loadFontBytes("Pretendard-Bold.ttf"), { subset: false });
   const blue = rgb(0.192, 0.51, 0.965);
   const text = rgb(0.098, 0.122, 0.157);
   const muted = rgb(0.306, 0.349, 0.408);

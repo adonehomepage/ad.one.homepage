@@ -2,7 +2,7 @@
 
 > **대상:** `landing` (Next.js + Postgres + cron) 개발자  
 > **출처:** `zigbang/red-ads-portal`에서 **패턴만** 추출 (시크릿·고객 데이터·직방 비즈니스 로직 제외)  
-> **landing 현재 배포:** Vercel Preview = dev / Production = prod · 브랜치 `main`만 (`docs/deployment.md`)  
+> **landing 현재 배포:** Vercel Preview = dev / Production = prod · 운영 `main`, 개발 `deploy/dev` (`docs/deployment.md`)  
 > 작성일: 2026-09-23
 
 ---
@@ -48,7 +48,7 @@
 | dev | Preview | `preview` | **dev** DB |
 | prod | Production | `production` | **prod** DB |
 
-- 브랜치 `main`만 유지해도 됨. 분리는 Vercel Env Scope.
+- 운영은 `main`, 개발 점검은 `deploy/dev`. DB·버킷·공개 URL은 Vercel Env Scope로 나눕니다.
 - `APP_PUBLIC_URL` / `APP_ADMIN_URL` / `STORAGE_PUBLIC_BASE_URL` 환경별 분리.
 
 ---

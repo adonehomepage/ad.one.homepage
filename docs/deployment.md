@@ -1,7 +1,14 @@
 # Vercel 배포 · 환경 분리 (Preview = dev, Production = prod)
 
-브랜치는 **`main`만** 사용합니다. `dev` / `deploy` 브랜치는 만들지 않습니다.  
-환경 분리는 Vercel **Preview(개발)** / **Production(운영)** 과 각각의 시크릿·DB로 합니다.
+운영 브랜치는 **`main`**, 개발 점검은 **`deploy/dev`** 입니다.  
+환경 분리는 Vercel **Preview(개발)** / **Production(운영)** 과 각각의 시크릿·DB·R2 버킷으로 합니다.
+
+| 주소 | 환경 | 브랜치 |
+|------|------|--------|
+| https://ad-one-homepage.vercel.app | Production | `main` push |
+| https://ad-one-homepage-dev.vercel.app | Preview | `deploy/dev`로 만든 Preview에 별칭을 다시 붙인 뒤 |
+
+`deploy/dev`에 push하면 Preview 배포는 새로 생기지만, 짧은 개발 주소는 자동으로 따라가지 않습니다. Ready가 된 그 Preview 배포에 `ad-one-homepage-dev.vercel.app` 별칭을 다시 지정합니다.
 
 ## 환경 매핑
 
@@ -19,7 +26,7 @@
 
 1. Vercel에 `adonehomepage/ad.one.homepage` 연결
 2. Production Branch: `main`
-3. Preview: PR 또는 Preview Deploy (브랜치 추가 없이 Preview 환경 변수만 사용)
+3. 개발 배포: 브랜치 `deploy/dev` (대시보드 Deployments → Create Deployment → `deploy/dev` → Create Preview Deployment)
 4. Framework: Next.js, Build: `npm run build`, Install: `npm ci`
 5. (선택) Build Command 앞에 검증: `npm run verify && npm run build`
 6. (선택) **Ignore Build Step**: `node scripts/vercel-ignore-build.mjs`  
@@ -36,12 +43,14 @@
 | 키 | Preview(dev) | Production(prod) |
 |----|--------------|------------------|
 | `APP_ENV` | `preview` | `production` |
-| `APP_PUBLIC_URL` | Preview URL 또는 고정 dev 도메인 | 운영 공개 도메인 |
-| `APP_ADMIN_URL` | 동일(또는 관리자 도메인) | 운영 관리자 URL |
+| `APP_PUBLIC_URL` | `https://ad-one-homepage-dev.vercel.app` | `https://ad-one-homepage.vercel.app` |
+| `APP_ADMIN_URL` | 개발 주소와 동일 | 운영 주소와 동일 |
 | `DATABASE_URL` | **dev** Postgres | **prod** Postgres |
-| `STORAGE_PROVIDER` | `s3` 권장 | `s3` |
-| `STORAGE_PUBLIC_BASE_URL` | CDN/버킷 공개 URL | 운영 CDN |
-| `S3_*` | dev 버킷(또는 동일 버킷·다른 prefix) | prod 버킷 |
+| `STORAGE_PROVIDER` | `s3` | `s3` |
+| `STORAGE_BUCKET_PUBLIC` | `public-assets-dev` | `public-assets` |
+| `STORAGE_BUCKET_PRIVATE` | `private-assets-dev` | `private-assets` |
+| `STORAGE_PUBLIC_BASE_URL` | `https://ad-one-homepage-dev.vercel.app/media` | `https://ad-one-homepage.vercel.app/media` |
+| `S3_*` | 같은 R2 계정 자격 증명, 버킷 이름만 다름 | 왼쪽과 같은 계정 |
 | `ERROR_MONITORING_DSN` | 선택(dev 프로젝트) | 운영 DSN |
 
 선택 플래그:
@@ -65,8 +74,12 @@ Vercel에 `CRON_SECRET`을 넣으면 Cron 요청에 `Authorization: Bearer …`�
 서버리스에서는 `STORAGE_PROVIDER=local`이 동작하지 않습니다.
 
 - 로컬: `local` + `./storage` + `/media/...`
-- Preview/Prod: `s3` (AWS S3 또는 R2 등 S3 호환)  
-  필요한 키: `S3_ENDPOINT`(R2 등), `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_FORCE_PATH_STYLE`
+- Preview/Prod: Cloudflare R2를 S3 호환 API로 사용 (`STORAGE_PROVIDER=s3`)
+  - 버킷 4개: `public-assets`, `private-assets`, `public-assets-dev`, `private-assets-dev`
+  - 버킷 공개 접근은 끈 채로 둡니다. 이미지는 앱의 `/media/{버킷}/{키}`가 R2에서 읽어 보냅니다.
+  - `S3_REGION=auto`, `S3_FORCE_PATH_STYLE=true`
+  - `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`는 R2 계정 API 토큰의 S3 자격 증명입니다. 토큰 값(`cfat_…`)은 앱이 쓰지 않습니다.
+  - 값은 Vercel에만 두고, 문서·채팅·스크린샷에 넣지 않습니다.
 
 ## 헬스체크
 

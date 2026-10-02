@@ -12,6 +12,8 @@ function client() {
     region: appConfig.s3Region,
     endpoint: appConfig.s3Endpoint || undefined,
     forcePathStyle: appConfig.s3ForcePathStyle,
+    requestChecksumCalculation: "WHEN_REQUIRED",
+    responseChecksumValidation: "WHEN_REQUIRED",
     credentials: {
       accessKeyId: appConfig.s3AccessKeyId,
       secretAccessKey: appConfig.s3SecretAccessKey,
