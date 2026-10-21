@@ -1,16 +1,23 @@
 import { cn } from "@/lib/cn";
-import type { ButtonHTMLAttributes } from "react";
+import { orgText } from "@/modules/admin/org-copy";
+import { forwardRef, type ButtonHTMLAttributes } from "react";
 
 type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "primary" | "soft" | "ghost" | "danger";
   loading?: boolean;
+  loadingLabel?: string;
 };
 
-export function Button({ className, variant = "primary", loading, children, disabled, ...props }: Props) {
+export const Button = forwardRef<HTMLButtonElement, Props>(function Button(
+  { className, variant = "primary", type = "button", loading, loadingLabel = orgText("busy"), children, disabled, ...props },
+  ref,
+) {
   return (
     <button
+      ref={ref}
+      type={type}
       className={cn(
-        "inline-flex min-h-10 items-center justify-center rounded-lg px-4 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50",
+        "inline-flex h-12 items-center justify-center rounded-[14px] px-5 text-[17px] font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50",
         variant === "primary" && "bg-primary text-on-primary hover:bg-primary-hover",
         variant === "soft" && "bg-primary-soft text-primary-soft-foreground hover:bg-[#d6e8ff]",
         variant === "ghost" && "border border-border bg-white text-text-body hover:bg-surface",
@@ -18,9 +25,11 @@ export function Button({ className, variant = "primary", loading, children, disa
         className,
       )}
       disabled={disabled || loading}
+      aria-busy={loading || undefined}
+      aria-disabled={disabled || loading || undefined}
       {...props}
     >
-      {loading ? "처리 중..." : children}
+      {loading ? loadingLabel : children}
     </button>
   );
-}
+});

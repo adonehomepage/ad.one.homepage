@@ -2,6 +2,7 @@ import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { appConfig } from "@/lib/config";
 import { nanoid } from "nanoid";
+import { orgText } from "@/modules/admin/org-copy";
 
 const ALLOWED_MIME = new Set([
   "image/jpeg",
@@ -15,11 +16,11 @@ const ALLOWED_MIME = new Set([
 
 export function assertAllowedFile(mime: string, size: number) {
   if (!ALLOWED_MIME.has(mime)) {
-    throw new Error("허용되지 않은 파일 형식입니다.");
+    throw new Error(orgText("storageMimeDenied"));
   }
   const max = mime.startsWith("video/") ? 200 * 1024 * 1024 : 20 * 1024 * 1024;
   if (size > max) {
-    throw new Error("파일 용량이 너무 큽니다.");
+    throw new Error(orgText("storageTooLarge"));
   }
 }
 
@@ -43,7 +44,18 @@ export async function saveLocalObject(input: {
 }
 
 export function localFilePath(bucket: string, objectKey: string) {
-  return path.join(appConfig.storageLocalRoot, bucket, objectKey);
+  if (!bucket || bucket.includes("..") || bucket.includes("/") || bucket.includes("\\")) {
+    throw new Error(orgText("storageMimeDenied"));
+  }
+  if (!objectKey || objectKey.includes("..")) {
+    throw new Error(orgText("storageMimeDenied"));
+  }
+  const root = path.resolve(appConfig.storageLocalRoot);
+  const full = path.resolve(root, bucket, objectKey);
+  if (!full.startsWith(root + path.sep) && full !== root) {
+    throw new Error(orgText("storageMimeDenied"));
+  }
+  return full;
 }
 
 export function contentTypeFromObjectKey(objectKey: string) {

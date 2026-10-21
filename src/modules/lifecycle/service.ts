@@ -4,6 +4,7 @@ import { advertiserRecipients, leads, notificationJobs, organizationMembers, pro
 import { appConfig } from "@/lib/config";
 import { plusDays } from "@/lib/datetime";
 import { writeAudit } from "@/modules/audit/service";
+import { orgText } from "@/modules/admin/org-copy";
 import { notificationProvider } from "@/lib/notifications";
 import { displayPhone } from "@/lib/validation/phone";
 
@@ -15,6 +16,31 @@ export async function processNotificationJobs(limit = 20) {
     .limit(limit);
 
   for (const job of jobs) {
+    if (job.recipientId) {
+      const [recipient] = await db
+        .select({
+          isActive: advertiserRecipients.isActive,
+          verificationStatus: advertiserRecipients.verificationStatus,
+          receiveLeadAlerts: advertiserRecipients.receiveLeadAlerts,
+          receiveExpiryAlerts: advertiserRecipients.receiveExpiryAlerts,
+        })
+        .from(advertiserRecipients)
+        .where(eq(advertiserRecipients.id, job.recipientId))
+        .limit(1);
+      const leadAlertOk =
+        job.eventType !== "LEAD_REGISTERED" ||
+        (recipient?.receiveLeadAlerts && recipient.verificationStatus === "VERIFIED");
+      const expiryAlertOk =
+        job.eventType === "LEAD_REGISTERED" ||
+        (recipient?.receiveExpiryAlerts && recipient.verificationStatus === "VERIFIED");
+      if (!recipient?.isActive || !leadAlertOk || !expiryAlertOk) {
+        await db
+          .update(notificationJobs)
+          .set({ status: "CANCELLED", errorMessageRedacted: "recipient_inactive", updatedAt: new Date() })
+          .where(eq(notificationJobs.id, job.id));
+        continue;
+      }
+    }
     await db
       .update(notificationJobs)
       .set({ status: "SENDING", attemptCount: job.attemptCount + 1, updatedAt: new Date() })
@@ -31,7 +57,9 @@ export async function processNotificationJobs(limit = 20) {
           leadPhone: payload.leadPhone,
           unitType: payload.unitType,
           inquiry: payload.inquiry,
+          details: payload.details,
           submittedAt: payload.submittedAt,
+          purposeDisclaimer: payload.purposeDisclaimer || orgText("leadPurposeDisclaimer"),
         });
       } else {
         result = await notificationProvider.sendExpiryNotification({
@@ -208,7 +236,7 @@ export async function purgePersonalData() {
     await db
       .update(leads)
       .set({
-        name: "파기됨",
+        name: orgText("leadPurged"),
         phoneCiphertext: "purged",
         inquiryText: null,
         answersJson: {},

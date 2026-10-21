@@ -8,7 +8,7 @@ if (existsSync(".env.local")) {
 
 const secret = () => randomBytes(32).toString("base64url");
 const contents = `# 로컬 전용. Git에 커밋하지 마세요.
-APP_NAME=브랜드명미정
+APP_NAME=ADONEBRIDGE
 APP_ENV=local
 APP_PUBLIC_URL=http://localhost:3000
 APP_ADMIN_URL=http://localhost:3000

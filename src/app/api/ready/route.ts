@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { appConfig } from "@/lib/config";
 import { getDeployEnv } from "@/lib/deploy-env";
 import { db } from "@/lib/db";
+import { isStorageWritable, storageProviderName } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -15,14 +16,20 @@ export async function GET() {
   } catch {
     database = "error";
   }
-  const ok = database === "ok";
+  const cronSecretConfigured = Boolean(appConfig.cronSecret);
+  const prodMissingCron = getDeployEnv() === "production" && !cronSecretConfigured;
+  const ok = database === "ok" && !prodMissingCron;
   return NextResponse.json(
     {
       ok,
       env: getDeployEnv(),
       appEnv: appConfig.env,
       database,
-      storage: appConfig.storageProvider,
+      storage: storageProviderName(),
+      storageWritable: isStorageWritable(),
+      cronSecretConfigured,
+      errorMonitoringConfigured: Boolean(appConfig.errorMonitoringDsn),
+      buildId: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
       latencyMs: Date.now() - started,
     },
     {

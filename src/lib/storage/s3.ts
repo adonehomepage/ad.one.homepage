@@ -3,10 +3,11 @@ import { nanoid } from "nanoid";
 import { appConfig } from "@/lib/config";
 import { assertAllowedFile } from "@/lib/storage/local";
 import type { SaveObjectInput, SavedObject } from "@/lib/storage/types";
+import { orgText } from "@/modules/admin/org-copy";
 
 function client() {
   if (!appConfig.s3AccessKeyId || !appConfig.s3SecretAccessKey) {
-    throw new Error("S3 자격 증명이 설정되지 않았습니다.");
+    throw new Error(orgText("s3CredentialsMissing"));
   }
   return new S3Client({
     region: appConfig.s3Region,

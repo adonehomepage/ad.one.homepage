@@ -24,9 +24,53 @@ body {
   font-family: "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
 }
 
+button,
+input,
+textarea,
+select {
+  font-family: inherit;
+}
+
 .inline-edit:empty::before {
   content: attr(data-placeholder);
   opacity: 0.55;
+}
+
+/* 글꼴은 Pretendard. 버튼·입력 모서리 14px, 높이 48px, 카드 모서리 16px는 TDS large/xlarge 근거. */
+@utility ui-card {
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background-color: #fff;
+  padding: 2rem;
+}
+
+@utility ui-table {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background-color: #fff;
+
+  & table {
+    min-width: 640px;
+  }
+}
+
+@utility ui-field {
+  min-height: 48px;
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background-color: #fff;
+  padding: 0 16px;
+  font-size: 16px;
+  color: var(--color-text-primary);
+
+  &:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-color: var(--color-primary);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

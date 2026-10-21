@@ -6,27 +6,51 @@ import { ApiError } from "@/lib/errors";
 import { appConfig } from "@/lib/config";
 import { decryptPii, encryptPii, phoneLookupHash, sha256 } from "@/lib/crypto/pii";
 import { displayPhone, isKoreanMobile, normalizePhone } from "@/lib/validation/phone";
+import { orgText } from "@/modules/admin/org-copy";
 import { writeAudit } from "@/modules/audit/service";
+import { csvCell } from "@/modules/leads/csv";
 import { getPublishedBySlug } from "@/modules/publishing/service";
 import { getProject } from "@/modules/projects/service";
 import type { PageSnapshot } from "@/types";
+
+export { csvCell } from "@/modules/leads/csv";
+
+function chrome(settings: Record<string, unknown> | undefined, key: string, fallback: string) {
+  return String(settings?.[key] ?? "").trim() || fallback;
+}
+
+function noticeLabel(snapshot: PageSnapshot, key: keyof NonNullable<PageSnapshot["privacy"]["noticeLabels"]>, fallback: string, chromeKey: string) {
+  return String(snapshot.privacy.noticeLabels?.[key] ?? "").trim() || chrome(snapshot.globalSettings, chromeKey, fallback);
+}
+
+function notificationDetails(fields: PageSnapshot["formSettings"]["fields"], answers: Record<string, unknown>) {
+  return fields
+    .filter((field) => field.includeInNotification !== false && field.type !== "name" && field.type !== "phone")
+    .map((field) => {
+      const value = answers[field.key];
+      const text = Array.isArray(value) ? value.map(String).filter(Boolean).join(", ") : String(value ?? "").trim();
+      return text ? `${field.label}: ${text}` : "";
+    })
+    .filter(Boolean)
+    .join("\n");
+}
 
 function consentText(snapshot: PageSnapshot, type: "COLLECTION" | "THIRD_PARTY_PROVISION") {
   const p = snapshot.privacy;
   if (type === "COLLECTION") {
     return [
-      `수집 주체: ${p.collectingControllerName}`,
-      `수집 목적: ${p.collectionPurpose}`,
-      `수집 항목: ${p.collectedFields.join(", ")}`,
-      `보유 기간: ${p.retentionDescription}`,
-      `거부 시 영향: ${p.refusalConsequence}`,
+      `${noticeLabel(snapshot, "controller", "수집 주체", "noticeController")}: ${p.collectingControllerName}`,
+      `${noticeLabel(snapshot, "purpose", "수집 목적", "noticePurposeCollect")}: ${p.collectionPurpose}`,
+      `${noticeLabel(snapshot, "fields", "수집 항목", "noticeFieldsCollect")}: ${p.collectedFields.join(", ")}`,
+      `${noticeLabel(snapshot, "retention", "보유 기간", "noticeRetention")}: ${p.retentionDescription}`,
+      `${noticeLabel(snapshot, "refusal", "거부 시 영향", "noticeRefusalImpact")}: ${p.refusalConsequence}`,
     ].join("\n");
   }
   return [
-    `제공받는 자: ${p.thirdPartyRecipientName ?? ""}`,
-    `이용 목적: ${p.thirdPartyPurpose ?? ""}`,
-    `제공 항목: ${(p.thirdPartyFields ?? []).join(", ")}`,
-    `보유 기간: ${p.thirdPartyRetentionDescription ?? ""}`,
+    `${chrome(snapshot.globalSettings, "noticeThirdRecipient", "제공받는 자")}: ${p.thirdPartyRecipientName ?? ""}`,
+    `${noticeLabel(snapshot, "purpose", "이용 목적", "noticePurposeUse")}: ${p.thirdPartyPurpose ?? ""}`,
+    `${noticeLabel(snapshot, "fields", "제공 항목", "noticeFieldsProvide")}: ${(p.thirdPartyFields ?? []).join(", ")}`,
+    `${noticeLabel(snapshot, "retention", "보유 기간", "noticeRetention")}: ${p.thirdPartyRetentionDescription ?? ""}`,
   ].join("\n");
 }
 
@@ -42,23 +66,24 @@ export async function submitPublicLead(input: {
   userAgent?: string | null;
 }) {
   if (!appConfig.leadCollectionEnabled) {
-    throw new ApiError("LEAD_COLLECTION_DISABLED", "개인정보 처리 주체가 확정되기 전에는 실제 관심고객을 수집하지 않습니다.");
+    throw new ApiError("LEAD_COLLECTION_DISABLED", orgText("leadCollectionDisabled"));
   }
   const published = await getPublishedBySlug(input.slug.trim().normalize("NFC").toLowerCase());
   if (!published) {
-    throw new ApiError("PROJECT_EXPIRED", "현재 관심고객을 받을 수 없는 홈페이지입니다.", 403);
+    throw new ApiError("PROJECT_EXPIRED", orgText("leadProjectClosed"), 403);
   }
   const snapshot = published.snapshot;
+  const settings = snapshot.globalSettings;
   if (!input.consents.collection) {
-    throw new ApiError("CONSENT_REQUIRED", "개인정보 수집 및 이용에 동의해 주세요.");
+    throw new ApiError("CONSENT_REQUIRED", chrome(settings, "formCollectionErrorPh", "개인정보 수집 및 이용에 동의해 주세요."));
   }
   if (snapshot.privacy.thirdPartyProvisionEnabled && !input.consents.thirdParty) {
-    throw new ApiError("CONSENT_REQUIRED", "개인정보 제3자 제공에 동의해 주세요.");
+    throw new ApiError("CONSENT_REQUIRED", chrome(settings, "formThirdErrorPh", "개인정보 제3자 제공에 동의해 주세요."));
   }
   const name = input.name.trim();
-  if (!name) throw new ApiError("VALIDATION_ERROR", "이름을 입력해 주세요.", 400, "name");
+  if (!name) throw new ApiError("VALIDATION_ERROR", chrome(settings, "formNameErrorPh", "이름을 입력해 주세요."), 400, "name");
   if (!isKoreanMobile(input.phone)) {
-    throw new ApiError("VALIDATION_ERROR", "올바른 휴대전화 번호를 입력해 주세요.", 400, "phone");
+    throw new ApiError("VALIDATION_ERROR", chrome(settings, "formPhoneErrorPh", "올바른 휴대전화 번호를 입력해 주세요."), 400, "phone");
   }
   const phone = normalizePhone(input.phone);
   const lookup = phoneLookupHash(phone);
@@ -153,7 +178,9 @@ export async function submitPublicLead(input: {
           leadPhone: displayPhone(phone),
           unitType: input.answers.unitType ?? null,
           inquiry: input.answers.inquiry ?? null,
+          details: notificationDetails(snapshot.formSettings.fields, input.answers),
           submittedAt: created.submittedAt.toISOString(),
+          purposeDisclaimer: orgText("leadPurposeDisclaimer"),
           to,
         },
         idempotencyKey: `lead:${created.id}:${recipient.id}`,
@@ -172,14 +199,17 @@ export async function listLeads(input: {
   from?: Date;
   to?: Date;
   page?: number;
+  limit?: number;
 }) {
   const page = Math.max(1, input.page ?? 1);
+  const limit = Math.min(Math.max(1, input.limit ?? 50), 500);
   const filters = [eq(leads.organizationId, input.organizationId), sql`${leads.deletedAt} is null`];
   if (input.projectId) filters.push(eq(leads.projectId, input.projectId));
   if (input.from) filters.push(gte(leads.submittedAt, input.from));
   if (input.to) filters.push(lte(leads.submittedAt, input.to));
   if (input.q) {
-    const nameMatch = ilike(leads.name, `%${input.q}%`);
+    const safeQ = input.q.replace(/[%_\\]/g, "");
+    const nameMatch = ilike(leads.name, `%${safeQ}%`);
     const normalized = normalizePhone(input.q);
     if (isKoreanMobile(input.q) || /^\d{10,11}$/.test(normalized)) {
       try {
@@ -198,8 +228,8 @@ export async function listLeads(input: {
     .innerJoin(projects, eq(projects.id, leads.projectId))
     .where(and(...filters))
     .orderBy(desc(leads.submittedAt))
-    .limit(50)
-    .offset((page - 1) * 50);
+    .limit(limit)
+    .offset((page - 1) * limit);
 
   return rows.map((row) => ({
     ...row.lead,
@@ -217,7 +247,7 @@ export async function getLead(organizationId: string, leadId: string, actorUserI
     .innerJoin(projects, eq(projects.id, leads.projectId))
     .where(and(eq(leads.id, leadId), eq(leads.organizationId, organizationId)))
     .limit(1);
-  if (!row) throw new ApiError("NOT_FOUND", "관심고객을 찾을 수 없습니다.", 404);
+  if (!row) throw new ApiError("NOT_FOUND", orgText("leadNotFound"), 404);
   const notes = await db.select().from(leadNotes).where(eq(leadNotes.leadId, leadId)).orderBy(desc(leadNotes.createdAt));
   const consents = await db.select().from(leadConsents).where(eq(leadConsents.leadId, leadId));
   const jobs = await db.select().from(notificationJobs).where(eq(notificationJobs.leadId, leadId));
@@ -245,13 +275,14 @@ export async function addLeadNote(input: {
   content: string;
 }) {
   const content = input.content.trim();
-  if (!content) throw new ApiError("VALIDATION_ERROR", "메모 내용을 입력해 주세요.");
+  if (!content) throw new ApiError("VALIDATION_ERROR", orgText("leadNoteEmpty"));
+  if (content.length > 4000) throw new ApiError("VALIDATION_ERROR", orgText("leadNoteTooLong"));
   const [lead] = await db
     .select()
     .from(leads)
     .where(and(eq(leads.id, input.leadId), eq(leads.organizationId, input.organizationId)))
     .limit(1);
-  if (!lead) throw new ApiError("NOT_FOUND", "관심고객을 찾을 수 없습니다.", 404);
+  if (!lead) throw new ApiError("NOT_FOUND", orgText("leadNotFound"), 404);
   const [note] = await db
     .insert(leadNotes)
     .values({
@@ -265,9 +296,35 @@ export async function addLeadNote(input: {
   return note;
 }
 
+export function formatLeadAnswers(answers: unknown) {
+  if (!answers || typeof answers !== "object" || Array.isArray(answers)) return [];
+  const labels: Record<string, string> = {
+    unitType: orgText("leadAnswerUnitType"),
+    inquiry: orgText("leadAnswerInquiry"),
+  };
+  return Object.entries(answers as Record<string, unknown>).flatMap(([key, value]) => {
+    const text = Array.isArray(value) ? value.map(String).filter(Boolean).join(", ") : String(value ?? "").trim();
+    if (!text) return [];
+    return [{ key, label: labels[key] ?? orgText("leadAnswerExtra"), text }];
+  });
+}
+
 export async function exportLeads(input: { organizationId: string; projectId: string; actorUserId: string }) {
   await getProject(input.organizationId, input.projectId);
-  const rows = await listLeads({ organizationId: input.organizationId, projectId: input.projectId, page: 1 });
+  const rows: Awaited<ReturnType<typeof listLeads>> = [];
+  let page = 1;
+  for (;;) {
+    const batch = await listLeads({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      page,
+      limit: 500,
+    });
+    rows.push(...batch);
+    if (batch.length < 500) break;
+    page += 1;
+    if (page > 200) break;
+  }
   await writeAudit({
     organizationId: input.organizationId,
     actorUserId: input.actorUserId,
@@ -276,10 +333,17 @@ export async function exportLeads(input: { organizationId: string; projectId: st
     resourceId: input.projectId,
     metadata: { count: rows.length },
   });
-  const header = "등록일시,이름,연락처,문의,유입";
+  const header = orgText("leadCsvHeader");
   const body = rows
     .map((row) =>
-      [row.submittedAt.toISOString(), row.name, row.phone, row.inquiryText ?? "", row.utmSource ?? ""].join(","),
+      [
+        row.submittedAt.toISOString(),
+        row.name,
+        row.phone ?? "",
+        row.inquiryText ?? "",
+        formatLeadAnswers(row.answersJson).map((item) => `${item.label}: ${item.text}`).join(" / "),
+        row.utmSource ?? "",
+      ].map(csvCell).join(","),
     )
     .join("\n");
   return `${header}\n${body}`;

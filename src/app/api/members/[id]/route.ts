@@ -1,13 +1,15 @@
 import { z } from "zod";
 import { withAdmin } from "@/lib/api/http";
+import { assertRequestOrigin } from "@/lib/api/origin";
+import { parseJsonBody } from "@/lib/api/parse";
 import { changeRole, reactivateMember, suspendMember } from "@/modules/members/service";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function PATCH(request: Request, { params }: Params) {
   const { id } = await params;
-  const body = z.object({ role: z.enum(["SYSTEM_ADMIN", "MEMBER"]) }).parse(await request.json());
   return withAdmin(async (ctx) => {
+    const body = await parseJsonBody(request, z.object({ role: z.enum(["SYSTEM_ADMIN", "MEMBER"]) }));
     await changeRole({ organizationId: ctx.organization.id, actorUserId: ctx.user.id, memberId: id, role: body.role });
     return { ok: true };
   });
@@ -18,6 +20,7 @@ export async function POST(request: Request, { params }: Params) {
   const url = new URL(request.url);
   const action = url.searchParams.get("action");
   return withAdmin(async (ctx) => {
+    assertRequestOrigin(request);
     if (action === "reactivate") {
       await reactivateMember({ organizationId: ctx.organization.id, actorUserId: ctx.user.id, memberId: id });
     } else {

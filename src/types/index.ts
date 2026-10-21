@@ -1,7 +1,7 @@
 export type MemberRole = "SYSTEM_ADMIN" | "MEMBER";
 export type MemberStatus = "INVITED" | "ACTIVE" | "SUSPENDED" | "EXPIRED";
 export type ProjectStatus = "DRAFT" | "PUBLISHED" | "PAUSED" | "EXPIRED" | "PENDING_DELETION" | "DELETED";
-export type TemplateCode = "image-focus" | "video-ready";
+export type TemplateCode = "image-focus" | "video-ready" | "forest" | "info";
 export type SectionType =
   | "hero"
   | "overview"
@@ -50,6 +50,7 @@ export type LeadFormField = {
   type: LeadFormFieldType;
   label: string;
   helperText?: string;
+  placeholder?: string;
   required: boolean;
   options?: string[];
   visible: boolean;
@@ -65,6 +66,7 @@ export type ProjectPrivacyConfig = {
   collectedFields: string[];
   retentionDescription: string;
   privacyPolicyUrl: string;
+  privacyPolicyLabel?: string;
   thirdPartyProvisionEnabled: boolean;
   thirdPartyRecipientName?: string;
   thirdPartyPurpose?: string;
@@ -72,6 +74,18 @@ export type ProjectPrivacyConfig = {
   thirdPartyRetentionDescription?: string;
   refusalConsequence: string;
   privacyContactEmail?: string;
+  noticeLabels?: {
+    title?: string;
+    controller?: string;
+    purpose?: string;
+    fields?: string;
+    retention?: string;
+    operator?: string;
+    operatorNote?: string;
+    thirdParty?: string;
+    refusal?: string;
+    close?: string;
+  };
 };
 
 export type PageSnapshot = {
@@ -80,8 +94,16 @@ export type PageSnapshot = {
   publicSlug: string;
   phone: string;
   globalSettings: Record<string, unknown>;
-  formSettings: { fields: LeadFormField[]; intro: string; successMessage: string };
-  seoSettings: { title: string; description: string; ogImageAssetId: string | null };
+  formSettings: {
+    fields: LeadFormField[];
+    intro: string;
+    successMessage: string;
+    successTitle?: string;
+    againLabel?: string;
+    submittingLabel?: string;
+    previewNote?: string;
+  };
+  seoSettings: { title: string; description: string; ogImageAssetId: string | null; ogImageUrl?: string | null };
   privacy: ProjectPrivacyConfig;
   sections: PageSection[];
 };

@@ -14,4 +14,5 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// Vercel Cron invokes GET; alias to the POST handler.
 export const GET = POST;

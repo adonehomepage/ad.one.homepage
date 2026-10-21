@@ -1,12 +1,13 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import fontkit from "@pdf-lib/fontkit";
-import { PDFDocument, rgb } from "pdf-lib";
+import { PDFDocument, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import { getProjectAnalytics } from "@/modules/analytics/service";
 import { getProject } from "@/modules/projects/service";
 import { formatSeoulDate } from "@/lib/datetime";
 import { brandLabel } from "@/lib/config";
 import { writeAudit } from "@/modules/audit/service";
+import { orgText } from "@/modules/admin/org-copy";
 
 const regularFontPath = path.join(process.cwd(), "src/assets/fonts/Pretendard-Regular.ttf");
 const boldFontPath = path.join(process.cwd(), "src/assets/fonts/Pretendard-Bold.ttf");
@@ -19,11 +20,28 @@ async function openReportPdf() {
   return { doc, regular, bold };
 }
 
+function drawLines(
+  page: PDFPage,
+  lines: string[],
+  startY: number,
+  font: PDFFont,
+  size: number,
+  color: ReturnType<typeof rgb>,
+) {
+  let y = startY;
+  for (const line of lines) {
+    if (y < 72) break;
+    page.drawText(line.slice(0, 90), { x: 48, y, size, font, color });
+    y -= size + 6;
+  }
+  return y;
+}
+
 export async function renderHangulPdfSample(title: string) {
   const { doc, regular, bold } = await openReportPdf();
   const page = doc.addPage([595, 842]);
   page.drawText(title, { x: 48, y: 760, size: 22, font: bold, color: rgb(0.098, 0.122, 0.157) });
-  page.drawText("이 보고서에는 개인정보가 포함되지 않습니다.", {
+  page.drawText(orgText("reportNoPii"), {
     x: 48,
     y: 72,
     size: 9,
@@ -64,11 +82,11 @@ export async function buildProjectPdf(input: {
   );
 
   const kpis = [
-    ["조회수", String(analytics.totals.pageViews)],
-    ["순 방문자", String(analytics.totals.uniqueVisitors)],
-    ["전화 클릭", String(analytics.totals.phoneClicks)],
-    ["관심고객", String(analytics.totals.leadSubmissions)],
-    ["전환율", `${(analytics.totals.conversionRate * 100).toFixed(1)}%`],
+    [orgText("reportViews"), String(analytics.totals.pageViews)],
+    [orgText("reportUniques"), String(analytics.totals.uniqueVisitors)],
+    [orgText("reportPhoneClicks"), String(analytics.totals.phoneClicks)],
+    [orgText("reportLeads"), String(analytics.totals.leadSubmissions)],
+    [orgText("reportConversion"), `${(analytics.totals.conversionRate * 100).toFixed(1)}%`],
   ];
   kpis.forEach((item, index) => {
     const x = 48 + (index % 3) * 170;
@@ -78,14 +96,45 @@ export async function buildProjectPdf(input: {
     page.drawText(item[1], { x: x + 12, y: y - 4, size: 18, font: bold, color: text });
   });
 
-  page.drawText("이 보고서에는 개인정보가 포함되지 않습니다.", {
+  let y = 500;
+  page.drawText(orgText("reportDaily"), { x: 48, y, size: 13, font: bold, color: text });
+  y -= 20;
+  const dailyLines = analytics.daily.slice(-14).map(
+    (row) => `${row.date}  조회 ${row.pageViews}  순방문 ${row.uniqueVisitors}  관심 ${row.leads}`,
+  );
+  y = drawLines(page, dailyLines.length ? dailyLines : ["-"], y, regular, 10, muted);
+
+  y -= 16;
+  page.drawText(orgText("reportChannels"), { x: 48, y, size: 13, font: bold, color: text });
+  y -= 20;
+  const channelLines = analytics.channels.slice(0, 12).map((channel) => {
+    const source = channel.source ?? "direct";
+    const medium = channel.medium ?? "-";
+    const campaign = channel.campaign ? ` / ${channel.campaign}` : "";
+    return `${source} / ${medium}${campaign}  ${Number(channel.views)}`;
+  });
+  y = drawLines(page, channelLines.length ? channelLines : ["-"], y, regular, 10, muted);
+
+  y -= 16;
+  page.drawText(orgText("reportDevices"), { x: 48, y, size: 13, font: bold, color: text });
+  y -= 20;
+  const deviceLines = analytics.devices.map((device) => `${device.deviceType ?? "unknown"}  ${Number(device.count)}`);
+  drawLines(page, deviceLines.length ? deviceLines : ["-"], y, regular, 10, muted);
+
+  page.drawText(orgText("reportNoPii"), {
     x: 48,
     y: 72,
     size: 9,
     font: regular,
     color: muted,
   });
-  page.drawText(`생성 시각 ${formatSeoulDate(new Date())}`, { x: 48, y: 56, size: 9, font: regular, color: muted });
+  page.drawText(orgText("reportGeneratedAt").replace("{date}", formatSeoulDate(new Date())), {
+    x: 48,
+    y: 56,
+    size: 9,
+    font: regular,
+    color: muted,
+  });
 
   const bytes = await doc.save();
   return { bytes, fileName: `${project.publicSlug}-${formatSeoulDate(input.from)}-${formatSeoulDate(input.to)}.pdf` };

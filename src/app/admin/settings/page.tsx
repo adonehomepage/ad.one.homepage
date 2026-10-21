@@ -1,6 +1,7 @@
+import Link from "next/link";
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { auditLogs, organizationSettings } from "@/lib/db/schema";
+import { auditLogs, organizationSettings, userProfiles } from "@/lib/db/schema";
 import { getAuthContext, isSystemAdmin } from "@/lib/auth/session";
 import { redirect } from "next/navigation";
 import { formatSeoul } from "@/lib/datetime";
@@ -8,6 +9,10 @@ import { appConfig } from "@/lib/config";
 import { getDeployEnv } from "@/lib/deploy-env";
 import { featureFlags } from "@/lib/feature-flags";
 import { SettingsForm } from "@/app/admin/settings/settings-form";
+import { EmptyState } from "@/components/ui/empty-state";
+import { auditActionLabel, auditResourceLabel, orgText } from "@/modules/admin/org-copy";
+
+const AUDIT_PAGE_SIZE = 50;
 
 export default async function SettingsPage() {
   const ctx = await getAuthContext();
@@ -21,24 +26,24 @@ export default async function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">설정</h1>
-        <p className="mt-2 text-sm text-text-body">브랜드명, 법인명, 카카오 채널명은 출시 전 확정 후 환경변수와 여기서 설정합니다.</p>
+        <h1 className="text-3xl font-bold">{orgText("navSettings")}</h1>
+        <p className="mt-2 text-sm text-text-body">{orgText("settingsBody")}</p>
       </div>
-      <dl className="grid gap-4 rounded-2xl bg-white p-6 md:grid-cols-2">
+      <dl className="grid gap-4 ui-card md:grid-cols-2">
         <div>
-          <dt className="text-sm text-text-muted">배포 환경</dt>
+          <dt className="text-sm text-text-muted">{orgText("deployEnv")}</dt>
           <dd className="mt-1 font-medium">{getDeployEnv()} ({appConfig.env})</dd>
         </div>
         <div>
-          <dt className="text-sm text-text-muted">관심고객 수집</dt>
-          <dd className="mt-1 font-medium">{appConfig.leadCollectionEnabled ? "활성" : "차단(처리 주체 미확정)"}</dd>
+          <dt className="text-sm text-text-muted">{orgText("leadCollection")}</dt>
+          <dd className="mt-1 font-medium">{appConfig.leadCollectionEnabled ? orgText("leadOn") : orgText("leadOff")}</dd>
         </div>
         <div>
-          <dt className="text-sm text-text-muted">관심고객 관리 UI</dt>
-          <dd className="mt-1 font-medium">{flags.leadAdmin ? "노출" : "숨김(prod)"}</dd>
+          <dt className="text-sm text-text-muted">{orgText("leadAdminUi")}</dt>
+          <dd className="mt-1 font-medium">{flags.leadAdmin ? orgText("leadAdminOn") : orgText("leadAdminOff")}</dd>
         </div>
         <div>
-          <dt className="text-sm text-text-muted">발송 공급자</dt>
+          <dt className="text-sm text-text-muted">{orgText("providers")}</dt>
           <dd className="mt-1 font-medium">{appConfig.kakaoProvider} / {appConfig.emailProvider}</dd>
         </div>
       </dl>
@@ -55,31 +60,89 @@ export default async function SettingsPage() {
           }}
         />
       ) : (
-        <p className="text-sm text-text-muted">전역 보안 설정 변경은 시스템 관리자만 가능합니다.</p>
+        <p className="text-sm text-text-muted">{orgText("settingsAdminOnly")}</p>
       )}
     </div>
   );
 }
 
-export async function AuditLogsView() {
+export async function AuditLogsView({
+  page = 1,
+  basePath = "/admin/audit-logs",
+}: {
+  page?: number;
+  basePath?: string;
+}) {
   const ctx = await getAuthContext();
   if (!ctx) return null;
+  const currentPage = Math.max(1, page);
   const rows = await db
-    .select()
+    .select({
+      log: auditLogs,
+      actorName: userProfiles.name,
+      actorEmail: userProfiles.email,
+    })
     .from(auditLogs)
+    .leftJoin(userProfiles, eq(userProfiles.id, auditLogs.actorUserId))
     .where(eq(auditLogs.organizationId, ctx.organization.id))
     .orderBy(desc(auditLogs.occurredAt))
-    .limit(100);
+    .limit(AUDIT_PAGE_SIZE)
+    .offset((currentPage - 1) * AUDIT_PAGE_SIZE);
+  if (rows.length === 0) {
+    if (currentPage > 1) {
+      return (
+        <EmptyState
+          title={orgText("auditPageEmptyTitle")}
+          description={orgText("auditPageEmpty")}
+          action={
+            <Link href={`${basePath}?page=${currentPage - 1}`} className="text-[17px] font-semibold text-primary">
+              {orgText("pagePrev")}
+            </Link>
+          }
+        />
+      );
+    }
+    return <EmptyState title={orgText("auditEmptyTitle")} description={orgText("auditEmpty")} />;
+  }
+  const hasPrev = currentPage > 1;
+  const hasNext = rows.length === AUDIT_PAGE_SIZE;
   return (
     <div className="space-y-3">
-      {rows.map((row) => (
-        <div key={row.id} className="rounded-xl bg-white p-4 text-sm">
-          <p className="font-medium">{row.action}</p>
-          <p className="text-text-muted">
-            {row.resourceType} · {formatSeoul(row.occurredAt)}
-          </p>
-        </div>
-      ))}
+      {rows.map(({ log, actorName, actorEmail }) => {
+        const meta = log.metadataJson && typeof log.metadataJson === "object" ? JSON.stringify(log.metadataJson) : "";
+        return (
+          <div key={log.id} className="ui-card text-sm">
+            <p className="font-medium">{auditActionLabel(log.action)}</p>
+            <p className="text-text-muted">
+              {auditResourceLabel(log.resourceType)}
+              {log.resourceId ? ` · ${log.resourceId.slice(0, 8)}…` : ""} · {formatSeoul(log.occurredAt)}
+            </p>
+            <p className="mt-1 text-text-muted">
+              {actorName || actorEmail || orgText("auditActorUnknown")}
+              {meta && meta !== "{}" ? ` · ${meta.slice(0, 120)}` : ""}
+            </p>
+          </div>
+        );
+      })}
+      {hasPrev || hasNext ? (
+        <nav className="flex items-center justify-between gap-3 pt-2" aria-label={orgText("auditNavLabel")}>
+          {hasPrev ? (
+            <Link href={`${basePath}?page=${currentPage - 1}`} className="text-[17px] font-semibold text-primary">
+              {orgText("pagePrev")}
+            </Link>
+          ) : (
+            <span />
+          )}
+          <span className="text-sm text-text-muted">{orgText("pageStatus").replace("{page}", String(currentPage))}</span>
+          {hasNext ? (
+            <Link href={`${basePath}?page=${currentPage + 1}`} className="text-[17px] font-semibold text-primary">
+              {orgText("pageNext")}
+            </Link>
+          ) : (
+            <span />
+          )}
+        </nav>
+      ) : null}
     </div>
   );
 }

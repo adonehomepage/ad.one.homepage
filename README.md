@@ -24,7 +24,7 @@ npm run dev
 - 아이디: `SEED_ADMIN_LOGIN` (기본 `teamadit`)
 - 비밀번호: `SEED_ADMIN_PASSWORD`
 
-헬스체크: `GET /api/health` (업타임) · `GET /api/ready` (DB)
+헬스체크: `GET /api/health` (업타임 `ok`/`ts`/`buildId`) · `GET /api/ready` (DB·`storageWritable`·`errorMonitoringConfigured`·`buildId`)
 
 ## 구성
 
@@ -32,7 +32,7 @@ npm run dev
 - 관리자: `/admin`
 - 인증: 초대 기반 로그인. 공개 회원가입 없음.
 - DB: 로컬 Postgres (`localhost:5433`, 컨테이너 `adit-landing-saas-db`)
-- 스토리지: 로컬 `STORAGE_PROVIDER=local` / 배포 시 `s3`
+- 스토리지: 지금은 `STORAGE_PROVIDER=local` (로컬 `./storage`). Cloudflare R2는 결제수단 등록 뒤에 이어서 연결합니다.
 - 알림: 샌드박스 기본. `LEAD_COLLECTION_ENABLED=false`
 
 ## Vercel 배포 (Preview = dev, Production = prod)
@@ -42,11 +42,11 @@ npm run dev
 요약:
 
 1. Vercel에 GitHub 저장소 연결 (`main` → Production, `deploy/dev` → Preview)
-2. Preview / Production에 **서로 다른** `DATABASE_URL`·시크릿·R2 버킷
-3. 배포 환경은 `STORAGE_PROVIDER=s3`. 공개 URL은 각 사이트의 `/media` 이고, R2 버킷 자체는 비공개입니다.
+2. Preview / Production에 **서로 다른** `DATABASE_URL`·시크릿
+3. 배포 준비 단계에서 R2 결제·버킷 생성은 하지 않습니다. 이미지 업로드(R2/`STORAGE_PROVIDER=s3`)는 결제수단 등록 뒤에 이어서 합니다.
 4. 운영 https://ad-one-homepage.vercel.app · 개발 https://ad-one-homepage-dev.vercel.app
 5. `LEAD_COLLECTION_ENABLED`와 실알림은 확정 전까지 끄기
 
 ## 출시 전 확정 필요
 
-브랜드명, 운영 법인명, 개인정보 처리 주체, 공개 도메인, 카카오 채널, 실제 발송 공급자. 확정 전까지 실제 고객 데이터를 넣지 마세요.
+브랜드명은 ADONEBRIDGE입니다. 운영 법인명, 개인정보 처리 주체, 공개 도메인, 카카오 채널, 실제 발송 공급자는 아직 확정 전입니다. 확정 전까지 실제 고객 데이터를 넣지 마세요.

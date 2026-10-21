@@ -1,9 +1,29 @@
 import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { withAdmin, withStaff } from "@/lib/api/http";
+import { parseJsonBody } from "@/lib/api/parse";
 import { db } from "@/lib/db";
 import { organizationSettings } from "@/lib/db/schema";
 import { writeAudit } from "@/modules/audit/service";
+import { appConfig } from "@/lib/config";
+import { isEmail } from "@/lib/validation/phone";
+import { orgText } from "@/modules/admin/org-copy";
+
+const optionalEmail = z
+  .string()
+  .optional()
+  .transform((value) => value?.trim() ?? "")
+  .refine((value) => !value || isEmail(value), { message: orgText("emailInvalid") });
+
+const optionalSettings = z.object({
+  brandName: z.string().optional(),
+  legalCompanyName: z.string().optional(),
+  kakaoChannelName: z.string().optional(),
+  supportEmail: optionalEmail,
+  privacyOfficerName: z.string().optional(),
+  privacyContactEmail: optionalEmail,
+  defaultDurationMonths: z.number().int().min(1).max(appConfig.maxDurationMonths).optional(),
+});
 
 export async function GET() {
   return withStaff(async (ctx) => {
@@ -17,18 +37,10 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  const body = z
-    .object({
-      brandName: z.string().optional(),
-      legalCompanyName: z.string().optional(),
-      kakaoChannelName: z.string().optional(),
-      supportEmail: z.string().optional(),
-      privacyOfficerName: z.string().optional(),
-      privacyContactEmail: z.string().optional(),
-      defaultDurationMonths: z.number().int().min(1).optional(),
-    })
-    .parse(await request.json());
   return withAdmin(async (ctx) => {
+    const body = await parseJsonBody(request, optionalSettings);
+    const supportEmail = body.supportEmail || null;
+    const privacyContactEmail = body.privacyContactEmail || null;
     await db
       .insert(organizationSettings)
       .values({
@@ -36,9 +48,9 @@ export async function PATCH(request: Request) {
         brandName: body.brandName,
         legalCompanyName: body.legalCompanyName,
         kakaoChannelName: body.kakaoChannelName,
-        supportEmail: body.supportEmail,
+        supportEmail,
         privacyOfficerName: body.privacyOfficerName,
-        privacyContactEmail: body.privacyContactEmail,
+        privacyContactEmail,
         defaultDurationMonths: body.defaultDurationMonths ?? 3,
         updatedBy: ctx.user.id,
         updatedAt: new Date(),
@@ -46,7 +58,13 @@ export async function PATCH(request: Request) {
       .onConflictDoUpdate({
         target: organizationSettings.organizationId,
         set: {
-          ...body,
+          brandName: body.brandName,
+          legalCompanyName: body.legalCompanyName,
+          kakaoChannelName: body.kakaoChannelName,
+          supportEmail,
+          privacyOfficerName: body.privacyOfficerName,
+          privacyContactEmail,
+          defaultDurationMonths: body.defaultDurationMonths,
           updatedBy: ctx.user.id,
           updatedAt: new Date(),
         },

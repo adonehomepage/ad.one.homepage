@@ -1,4 +1,5 @@
 import { cn } from "@/lib/cn";
+import { orgText } from "@/modules/admin/org-copy";
 
 const styles: Record<string, string> = {
   DRAFT: "bg-surface text-text-body",
@@ -15,23 +16,45 @@ const styles: Record<string, string> = {
 };
 
 const labels: Record<string, string> = {
-  DRAFT: "미발행",
-  PUBLISHED: "공개 중",
-  PAUSED: "비공개",
-  EXPIRED: "만료됨",
-  PENDING_DELETION: "삭제 대기",
-  ACTIVE: "활성",
-  SUSPENDED: "정지",
-  INVITED: "초대됨",
-  SENT: "발송 성공",
-  FAILED: "실패",
-  QUEUED: "대기",
+  DRAFT: orgText("badgeDraft"),
+  PUBLISHED: orgText("badgePublished"),
+  PAUSED: orgText("badgePaused"),
+  EXPIRED: orgText("badgeExpired"),
+  PENDING_DELETION: orgText("badgePending"),
+  ACTIVE: orgText("badgeActive"),
+  SUSPENDED: orgText("badgeSuspended"),
+  INVITED: orgText("badgeInvited"),
+  SENT: orgText("badgeSent"),
+  FAILED: orgText("badgeFailed"),
+  QUEUED: orgText("badgeQueued"),
 };
 
-export function Badge({ value }: { value: string }) {
+export function badgeLabels(settings: Record<string, unknown>) {
+  const text = (key: string, fallback: string) => String(settings[key] ?? "").trim() || fallback;
+  return {
+    DRAFT: text("badgeDraft", labels.DRAFT),
+    PUBLISHED: text("badgePublished", labels.PUBLISHED),
+    PAUSED: text("badgePaused", labels.PAUSED),
+    EXPIRED: text("badgeExpired", labels.EXPIRED),
+    PENDING_DELETION: text("badgePending", labels.PENDING_DELETION),
+    ACTIVE: text("badgeActive", labels.ACTIVE),
+    SUSPENDED: text("badgeSuspended", labels.SUSPENDED),
+    INVITED: text("badgeInvited", labels.INVITED),
+    SENT: text("badgeSent", labels.SENT),
+    FAILED: text("badgeFailed", labels.FAILED),
+    QUEUED: text("badgeQueued", labels.QUEUED),
+  };
+}
+
+export function Badge({ value, labels: custom }: { value: string; labels?: Record<string, string> }) {
+  const label = custom?.[value] || labels[value] || value;
   return (
-    <span className={cn("inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium", styles[value] ?? "bg-surface text-text-body")}>
-      {labels[value] ?? value}
+    <span
+      role="status"
+      aria-label={orgText("badgeStatus").replace("{label}", label)}
+      className={cn("inline-flex rounded-[8px] px-2.5 py-1 text-xs font-medium", styles[value] ?? "bg-surface text-text-body")}
+    >
+      {label}
     </span>
   );
 }

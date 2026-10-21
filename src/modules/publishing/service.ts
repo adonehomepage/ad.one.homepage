@@ -1,32 +1,44 @@
+import { revalidatePath } from "next/cache";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { advertiserRecipients, projectDrafts, projects, projectSections, projectVersions } from "@/lib/db/schema";
 import { ApiError } from "@/lib/errors";
 import { appConfig } from "@/lib/config";
 import { addCalendarMonths } from "@/lib/datetime";
+import { orgText } from "@/modules/admin/org-copy";
 import { writeAudit } from "@/modules/audit/service";
 import { buildSnapshot, getDraft, getProject, mapSectionRow } from "@/modules/projects/service";
 import type { PageSection, PageSnapshot } from "@/types";
 
+function revalidatePublicSlug(slug: string) {
+  revalidatePath(`/${slug}`);
+  revalidatePath("/sitemap.xml");
+}
+
+function chrome(settings: Record<string, unknown> | undefined, key: string, fallback: string) {
+  return String(settings?.[key] ?? "").trim() || fallback;
+}
+
 function validatePublish(snapshot: PageSnapshot, firstPublish: boolean) {
+  const g = snapshot.globalSettings;
   const errors: string[] = [];
-  if (!snapshot.projectName.trim()) errors.push("프로젝트명이 필요합니다.");
-  if (!snapshot.publicSlug.trim()) errors.push("공개 URL이 필요합니다.");
+  if (!snapshot.projectName.trim()) errors.push(chrome(g, "publishErrName", "프로젝트명이 필요합니다."));
+  if (!snapshot.publicSlug.trim()) errors.push(chrome(g, "publishErrSlug", "공개 URL이 필요합니다."));
   const hero = snapshot.sections.find((section) => section.sectionType === "hero" && section.isVisible);
-  if (!hero) errors.push("히어로 섹션이 필요합니다.");
+  if (!hero) errors.push(chrome(g, "publishErrHero", "히어로 섹션이 필요합니다."));
   const form = snapshot.sections.find((section) => section.sectionType === "lead_form" && section.isVisible);
-  if (!form) errors.push("관심고객 등록 섹션이 필요합니다.");
+  if (!form) errors.push(chrome(g, "publishErrForm", "관심고객 등록 섹션이 필요합니다."));
   const legal = snapshot.sections.find((section) => section.sectionType === "legal" && section.isVisible);
-  if (!legal) errors.push("법적 고지 섹션을 숨길 수 없습니다.");
-  if (!snapshot.privacy.collectingControllerName.trim()) errors.push("개인정보 수집 주체를 입력해 주세요.");
+  if (!legal) errors.push(chrome(g, "publishErrLegal", "법적 고지 섹션을 숨길 수 없습니다."));
+  if (!snapshot.privacy.collectingControllerName.trim()) errors.push(chrome(g, "publishErrController", "개인정보 수집 주체를 입력해 주세요."));
   if (!snapshot.formSettings.fields.some((field) => field.type === "name" && field.required)) {
-    errors.push("이름 필수 필드가 필요합니다.");
+    errors.push(chrome(g, "publishErrNameField", "이름 필수 필드가 필요합니다."));
   }
   if (!snapshot.formSettings.fields.some((field) => field.type === "phone" && field.required)) {
-    errors.push("연락처 필수 필드가 필요합니다.");
+    errors.push(chrome(g, "publishErrPhoneField", "연락처 필수 필드가 필요합니다."));
   }
   if (firstPublish && snapshot.privacy.collectingControllerName === "처리주체미정" && appConfig.env === "production") {
-    errors.push("실제 개인정보 처리 주체를 설정한 뒤에 발행할 수 있습니다.");
+    errors.push(chrome(g, "publishErrControllerProd", "실제 개인정보 처리 주체를 설정한 뒤에 발행할 수 있습니다."));
   }
   if (errors.length) {
     throw new ApiError("PUBLISH_VALIDATION_FAILED", errors.join(" "));
@@ -41,10 +53,10 @@ export async function publishProject(input: {
 }) {
   const { project } = await getProject(input.organizationId, input.projectId);
   if (project.status === "EXPIRED") {
-    throw new ApiError("PROJECT_EXPIRED", "만료된 프로젝트는 연장 후 다시 공개할 수 있습니다.");
+    throw new ApiError("PROJECT_EXPIRED", orgText("publishExpired"));
   }
   if (project.status === "PENDING_DELETION" || project.status === "DELETED") {
-    throw new ApiError("FORBIDDEN", "삭제 대상 프로젝트는 발행할 수 없습니다.");
+    throw new ApiError("FORBIDDEN", orgText("publishDeleted"));
   }
 
   const snapshot = await buildSnapshot(input.organizationId, input.projectId);
@@ -70,7 +82,11 @@ export async function publishProject(input: {
         projectId: input.projectId,
         versionNumber,
         snapshotJson: snapshot,
-        changeSummary: input.changeSummary ?? (firstPublish ? "최초 발행" : "재발행"),
+        changeSummary:
+          input.changeSummary ??
+          (firstPublish
+            ? chrome(snapshot.globalSettings, "publishChangeFirst", "최초 발행")
+            : chrome(snapshot.globalSettings, "publishChangeAgain", "재발행")),
         publishedBy: input.userId,
         publishedAt: now,
       })
@@ -112,6 +128,7 @@ export async function publishProject(input: {
     resourceId: input.projectId,
     metadata: { versionId: version.id, versionNumber },
   });
+  revalidatePublicSlug(project.publicSlug);
   return version;
 }
 
@@ -138,7 +155,7 @@ export async function restoreVersion(input: {
     .from(projectVersions)
     .where(and(eq(projectVersions.id, input.versionId), eq(projectVersions.projectId, input.projectId)))
     .limit(1);
-  if (!version) throw new ApiError("NOT_FOUND", "버전을 찾을 수 없습니다.", 404);
+  if (!version) throw new ApiError("NOT_FOUND", orgText("versionNotFound"), 404);
   const snapshot = version.snapshotJson as PageSnapshot;
 
   await db.transaction(async (tx) => {
@@ -176,9 +193,11 @@ export async function restoreVersion(input: {
         updatedAt: new Date(),
       })
       .where(eq(projectDrafts.projectId, input.projectId));
+    const siteName = String(snapshot.globalSettings.siteName ?? snapshot.projectName ?? "").trim();
     await tx
       .update(projects)
       .set({
+        ...(siteName ? { name: siteName } : {}),
         draftRevision: project.draftRevision + 1,
         hasUnpublishedChanges: true,
         updatedBy: input.userId,
@@ -195,19 +214,24 @@ export async function restoreVersion(input: {
     resourceId: input.versionId,
   });
 
+  const draftRevision = project.draftRevision + 1;
   if (input.republish) {
-    return publishProject({
+    const published = await publishProject({
       organizationId: input.organizationId,
       projectId: input.projectId,
       userId: input.userId,
-      changeSummary: `버전 ${version.versionNumber} 복구 발행`,
+      changeSummary: orgText("versionRestorePublish").replace("{n}", String(version.versionNumber)),
     });
+    return { restored: true, republished: true, draftRevision, version: published };
   }
-  return { restored: true };
+  return { restored: true, republished: false, draftRevision };
 }
 
 export async function pauseProject(input: { organizationId: string; projectId: string; userId: string; reason?: string }) {
   const { project } = await getProject(input.organizationId, input.projectId);
+  if (project.status !== "PUBLISHED") {
+    throw new ApiError("VALIDATION_ERROR", orgText("pauseOnlyPublished"), 400);
+  }
   await db
     .update(projects)
     .set({ status: "PAUSED", updatedBy: input.userId, updatedAt: new Date() })
@@ -220,15 +244,16 @@ export async function pauseProject(input: { organizationId: string; projectId: s
     resourceId: project.id,
     metadata: { reason: input.reason ?? "" },
   });
+  revalidatePublicSlug(project.publicSlug);
 }
 
 export async function resumeProject(input: { organizationId: string; projectId: string; userId: string }) {
   const { project } = await getProject(input.organizationId, input.projectId);
   if (!project.currentPublishedVersionId) {
-    throw new ApiError("PUBLISH_VALIDATION_FAILED", "발행된 버전이 없어 재공개할 수 없습니다.");
+    throw new ApiError("PUBLISH_VALIDATION_FAILED", orgText("resumeNoVersion"));
   }
   if (project.expiresAt && project.expiresAt <= new Date()) {
-    throw new ApiError("PROJECT_EXPIRED", "만료된 프로젝트는 연장 후 재공개할 수 있습니다.");
+    throw new ApiError("PROJECT_EXPIRED", orgText("resumeExpired"));
   }
   await db
     .update(projects)
@@ -241,6 +266,7 @@ export async function resumeProject(input: { organizationId: string; projectId: 
     resourceType: "project",
     resourceId: project.id,
   });
+  revalidatePublicSlug(project.publicSlug);
 }
 
 export async function extendProject(input: {
@@ -250,7 +276,7 @@ export async function extendProject(input: {
   additionalMonths: number;
 }) {
   if (input.additionalMonths < 1) {
-    throw new ApiError("VALIDATION_ERROR", "연장 기간은 1개월 이상이어야 합니다.");
+    throw new ApiError("VALIDATION_ERROR", orgText("extendMinMonths"));
   }
   const { project } = await getProject(input.organizationId, input.projectId);
   const base = project.expiresAt && project.expiresAt > new Date() ? project.expiresAt : new Date();
@@ -281,7 +307,7 @@ export async function extendProject(input: {
 export async function deleteProject(input: { organizationId: string; projectId: string; userId: string; confirmName: string }) {
   const { project } = await getProject(input.organizationId, input.projectId);
   if (input.confirmName.trim() !== project.name) {
-    throw new ApiError("VALIDATION_ERROR", "삭제를 확인하려면 프로젝트명을 정확히 입력해 주세요.");
+    throw new ApiError("VALIDATION_ERROR", orgText("deleteConfirmName"));
   }
   const now = new Date();
   await db
@@ -301,6 +327,55 @@ export async function deleteProject(input: { organizationId: string; projectId: 
     resourceType: "project",
     resourceId: project.id,
   });
+}
+
+/** 프로젝트 없으면 null(호출측에서 notFound). 있으면만·일시중지 등은 안내 문구. */
+export async function getUnpublishedNotice(slugNormalized: string) {
+  const [project] = await db
+    .select({ id: projects.id, status: projects.status, expiresAt: projects.expiresAt })
+    .from(projects)
+    .where(eq(projects.publicSlugNormalized, slugNormalized))
+    .limit(1);
+  const generic = {
+    title: orgText("publicUnpublishedTitle"),
+    body: orgText("publicUnpublishedBody"),
+  };
+  if (!project) return null;
+
+  const expired = Boolean(project.expiresAt && project.expiresAt <= new Date()) || project.status === "EXPIRED";
+  const noticeKey =
+    project.status === "PAUSED"
+      ? ("paused" as const)
+      : project.status === "PENDING_DELETION" || project.status === "DELETED"
+        ? ("pendingDeletion" as const)
+        : expired
+          ? ("expired" as const)
+          : project.status === "DRAFT"
+            ? ("draft" as const)
+            : ("generic" as const);
+
+  const defaults =
+    noticeKey === "paused"
+      ? { title: orgText("publicPausedTitle"), body: orgText("publicPausedBody"), titleKey: "publicPausedTitle", bodyKey: "publicPausedBody" }
+      : noticeKey === "pendingDeletion"
+        ? {
+            title: project.status === "DELETED" ? orgText("publicDeletedTitle") : orgText("publicPendingDeletionTitle"),
+            body: project.status === "DELETED" ? orgText("publicDeletedBody") : orgText("publicPendingDeletionBody"),
+            titleKey: project.status === "DELETED" ? "publicDeletedTitle" : "publicPendingDeletionTitle",
+            bodyKey: project.status === "DELETED" ? "publicDeletedBody" : "publicPendingDeletionBody",
+          }
+        : noticeKey === "expired"
+          ? { title: orgText("publicExpiredTitle"), body: orgText("publicExpiredBody"), titleKey: "publicExpiredTitle", bodyKey: "publicExpiredBody" }
+          : noticeKey === "draft"
+            ? { title: orgText("publicDraftTitle"), body: orgText("publicDraftBody"), titleKey: "publicDraftTitle", bodyKey: "publicDraftBody" }
+            : { title: generic.title, body: generic.body, titleKey: "publicUnpublishedTitle", bodyKey: "publicUnpublishedBody" };
+
+  const [draft] = await db.select({ globalSettings: projectDrafts.globalSettings }).from(projectDrafts).where(eq(projectDrafts.projectId, project.id)).limit(1);
+  const settings = (draft?.globalSettings ?? {}) as Record<string, unknown>;
+  return {
+    title: String(settings[defaults.titleKey] ?? settings.publicUnpublishedTitle ?? "").trim() || defaults.title,
+    body: String(settings[defaults.bodyKey] ?? settings.publicUnpublishedBody ?? "").trim() || defaults.body,
+  };
 }
 
 export async function getPublishedBySlug(slugNormalized: string) {

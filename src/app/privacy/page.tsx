@@ -1,11 +1,34 @@
-import { appConfig } from "@/lib/config";
+import type { Metadata } from "next";
+import Link from "next/link";
+import { appConfig, brandLabel } from "@/lib/config";
+import { orgText } from "@/modules/admin/org-copy";
+
+export const metadata: Metadata = {
+  title: orgText("privacyTitle"),
+  description: orgText("privacyDescription"),
+  robots: { index: true, follow: true },
+};
 
 export default function PrivacyPage() {
+  const name = appConfig.privacyControllerName || orgText("legalHint");
+  const email = appConfig.privacyContactEmail || "";
   return (
     <main className="mx-auto max-w-3xl px-6 py-16">
-      <h1 className="text-3xl font-bold">개인정보 처리방침</h1>
-      <p className="mt-6 text-text-body">
-        실제 처리 주체와 전문은 법인명 확정 후 법무 검토를 거쳐 교체해야 합니다. 현재 표시명: {appConfig.privacyControllerName || "출시 전 확정 필요"}.
+      <p className="text-sm font-medium text-primary">{brandLabel()}</p>
+      <h1 className="mt-2 text-3xl font-bold">{orgText("privacyTitle")}</h1>
+      <p className="mt-6 text-text-body">{orgText("privacyBody").replace("{name}", name)}</p>
+      {email ? (
+        <p className="mt-4 text-sm text-text-body">
+          {orgText("privacyContact")}:{" "}
+          <a className="font-medium text-primary" href={`mailto:${email}`}>
+            {email}
+          </a>
+        </p>
+      ) : null}
+      <p className="mt-10 text-sm text-text-muted">
+        <Link href="/terms" className="text-primary">
+          {orgText("termsTitle")}
+        </Link>
       </p>
     </main>
   );

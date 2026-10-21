@@ -1,21 +1,31 @@
 import Link from "next/link";
 import { formatSeoul } from "@/lib/datetime";
+import { orgText } from "@/modules/admin/org-copy";
 
 export function LeadTable({
   items,
+  labels,
 }: {
   items: Array<{ id: string; name: string; phone?: string; projectName?: string; submittedAt: Date; utmSource: string | null }>;
+  labels?: { time: string; project: string; name: string; phone: string; source: string };
 }) {
+  const heading = {
+    time: labels?.time ?? orgText("colLeadTime"),
+    project: labels?.project ?? orgText("colProject"),
+    name: labels?.name ?? orgText("colName"),
+    phone: labels?.phone ?? orgText("colLeadPhone"),
+    source: labels?.source ?? orgText("colLeadSource"),
+  };
   return (
-    <div className="overflow-hidden rounded-2xl bg-white">
+    <div className="ui-table">
       <table className="w-full text-left text-sm">
         <thead className="bg-surface text-text-muted">
           <tr>
-            <th className="px-4 py-3">등록 일시</th>
-            <th className="px-4 py-3">프로젝트</th>
-            <th className="px-4 py-3">이름</th>
-            <th className="px-4 py-3">연락처</th>
-            <th className="px-4 py-3">유입</th>
+            <th className="px-4 py-3">{heading.time}</th>
+            <th className="px-4 py-3">{heading.project}</th>
+            <th className="px-4 py-3">{heading.name}</th>
+            <th className="px-4 py-3">{heading.phone}</th>
+            <th className="px-4 py-3">{heading.source}</th>
           </tr>
         </thead>
         <tbody>

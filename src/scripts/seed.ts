@@ -11,6 +11,7 @@ async function main() {
   }
 
   for (const template of TEMPLATE_CATALOG) {
+    if (!template.code) continue;
     await db
       .insert(templates)
       .values({
@@ -36,7 +37,7 @@ async function main() {
 
   await db
     .insert(organizationSettings)
-    .values({ organizationId: org.id, brandName: process.env.APP_NAME || "브랜드명미정" })
+    .values({ organizationId: org.id, brandName: process.env.APP_NAME || "ADONEBRIDGE" })
     .onConflictDoNothing();
 
   const loginId = (process.env.SEED_ADMIN_LOGIN || process.env.SEED_ADMIN_EMAIL || "teamadit").trim().toLowerCase();

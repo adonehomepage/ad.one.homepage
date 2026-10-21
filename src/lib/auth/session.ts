@@ -1,11 +1,11 @@
 import { cookies } from "next/headers";
-import { addDays, isAfter } from "date-fns";
+import { addDays, isAfter, min } from "date-fns";
 import { eq, and, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { organizationMembers, organizations, sessions, userProfiles } from "@/lib/db/schema";
 import { hashToken, randomToken } from "@/lib/crypto/pii";
-import { SESSION_COOKIE_NAME, SESSION_TTL_DAYS } from "@/lib/constants";
-import { appConfig } from "@/lib/config";
+import { SESSION_ABSOLUTE_DAYS, SESSION_COOKIE_NAME, SESSION_TTL_DAYS } from "@/lib/constants";
+import { isLocal } from "@/lib/deploy-env";
 import type { MemberRole, MemberStatus } from "@/types";
 
 export type AuthContext = {
@@ -14,6 +14,19 @@ export type AuthContext = {
   organization: typeof organizations.$inferSelect;
   sessionId: string;
 };
+
+const SESSION_TTL_MS = SESSION_TTL_DAYS * 24 * 60 * 60 * 1000;
+const SESSION_ABSOLUTE_MS = SESSION_ABSOLUTE_DAYS * 24 * 60 * 60 * 1000;
+
+/** 남은 수명이 TTL의 절반 미만이면 연장 대상 */
+export function shouldSlideSession(expiresAt: Date, now = new Date()) {
+  return expiresAt.getTime() - now.getTime() < SESSION_TTL_MS / 2;
+}
+
+/** 생성 시각 기준 절대 상한을 넘겼는지 */
+export function isSessionPastAbsolute(createdAt: Date, now = new Date()) {
+  return now.getTime() - createdAt.getTime() >= SESSION_ABSOLUTE_MS;
+}
 
 export async function createSession(userId: string) {
   const token = randomToken();
@@ -31,7 +44,7 @@ export async function setSessionCookie(token: string) {
   store.set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: appConfig.env === "production",
+    secure: !isLocal(),
     path: "/",
     maxAge: SESSION_TTL_DAYS * 24 * 60 * 60,
   });
@@ -39,7 +52,13 @@ export async function setSessionCookie(token: string) {
 
 export async function clearSessionCookie() {
   const store = await cookies();
-  store.delete(SESSION_COOKIE_NAME);
+  store.set(SESSION_COOKIE_NAME, "", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: !isLocal(),
+    path: "/",
+    maxAge: 0,
+  });
 }
 
 export async function readSessionToken() {
@@ -57,6 +76,19 @@ export async function getAuthContext(): Promise<AuthContext | null> {
     .where(and(eq(sessions.tokenHash, tokenHash), isNull(sessions.revokedAt)))
     .limit(1);
   if (!row || isAfter(new Date(), row.expiresAt)) return null;
+
+  if (isSessionPastAbsolute(row.createdAt)) {
+    await revokeSession(row.id);
+    await clearSessionCookie();
+    return null;
+  }
+
+  if (shouldSlideSession(row.expiresAt)) {
+    const absoluteEnd = addDays(row.createdAt, SESSION_ABSOLUTE_DAYS);
+    const expiresAt = min([addDays(new Date(), SESSION_TTL_DAYS), absoluteEnd]);
+    await db.update(sessions).set({ expiresAt }).where(eq(sessions.id, row.id));
+    await setSessionCookie(token);
+  }
 
   const [user] = await db.select().from(userProfiles).where(eq(userProfiles.id, row.userId)).limit(1);
   if (!user) return null;

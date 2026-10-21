@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
+import { isEmail } from "@/lib/validation/phone";
+import { orgText } from "@/modules/admin/org-copy";
 
 type Settings = {
   brandName?: string | null;
@@ -16,54 +18,97 @@ type Settings = {
 
 export function SettingsForm({ initial }: { initial: Settings }) {
   const [message, setMessage] = useState("");
+  const [isError, setIsError] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setLoading(true);
+    setMessage("");
+    setIsError(false);
     const form = new FormData(event.currentTarget);
-    const res = await fetch("/api/settings", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        brandName: form.get("brandName"),
-        legalCompanyName: form.get("legalCompanyName"),
-        kakaoChannelName: form.get("kakaoChannelName"),
-        supportEmail: form.get("supportEmail"),
-        privacyOfficerName: form.get("privacyOfficerName"),
-        privacyContactEmail: form.get("privacyContactEmail"),
-        defaultDurationMonths: Number(form.get("defaultDurationMonths") || 3),
-      }),
-    });
-    const json = await res.json();
-    setMessage(res.ok ? "저장했습니다. 실제 법인·채널 정보는 출시 전 확정값을 넣어야 합니다." : json.message);
+    const supportEmail = String(form.get("supportEmail") ?? "").trim();
+    const privacyContactEmail = String(form.get("privacyContactEmail") ?? "").trim();
+    if (supportEmail && !isEmail(supportEmail)) {
+      setLoading(false);
+      setIsError(true);
+      setMessage(orgText("emailInvalid"));
+      return;
+    }
+    if (privacyContactEmail && !isEmail(privacyContactEmail)) {
+      setLoading(false);
+      setIsError(true);
+      setMessage(orgText("emailInvalid"));
+      return;
+    }
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          brandName: form.get("brandName"),
+          legalCompanyName: form.get("legalCompanyName"),
+          kakaoChannelName: form.get("kakaoChannelName"),
+          supportEmail,
+          privacyOfficerName: form.get("privacyOfficerName"),
+          privacyContactEmail,
+          defaultDurationMonths: Number(form.get("defaultDurationMonths") || 3),
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setIsError(true);
+        setMessage(json.message ?? orgText("settingsFail"));
+        return;
+      }
+      setIsError(false);
+      setMessage(orgText("settingsSaved"));
+    } catch {
+      setIsError(true);
+      setMessage(orgText("settingsFail"));
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
-    <form onSubmit={onSubmit} className="grid gap-4 rounded-2xl bg-white p-6 md:grid-cols-2">
-      <Field label="서비스 이름">
+    <form onSubmit={onSubmit} className="grid gap-4 ui-card md:grid-cols-2">
+      <Field label={orgText("brandName")}>
         <Input name="brandName" defaultValue={initial.brandName ?? ""} />
       </Field>
-      <Field label="법인명" hint="출시 전 확정 필요">
+      <Field label={orgText("legalName")} hint={orgText("legalHint")}>
         <Input name="legalCompanyName" defaultValue={initial.legalCompanyName ?? ""} />
       </Field>
-      <Field label="카카오 채널명">
+      <Field label={orgText("kakaoName")}>
         <Input name="kakaoChannelName" defaultValue={initial.kakaoChannelName ?? ""} />
       </Field>
-      <Field label="기본 운영기간(개월)">
+      <Field label={orgText("durationMonths")}>
         <Input name="defaultDurationMonths" type="number" min={1} defaultValue={initial.defaultDurationMonths ?? 3} />
       </Field>
-      <Field label="지원 이메일">
-        <Input name="supportEmail" type="email" defaultValue={initial.supportEmail ?? ""} />
+      <Field label={orgText("supportEmail")}>
+        <Input name="supportEmail" type="email" autoComplete="email" defaultValue={initial.supportEmail ?? ""} />
       </Field>
-      <Field label="개인정보 보호 책임자">
-        <Input name="privacyOfficerName" defaultValue={initial.privacyOfficerName ?? ""} />
+      <Field label={orgText("privacyOfficer")}>
+        <Input name="privacyOfficerName" autoComplete="name" defaultValue={initial.privacyOfficerName ?? ""} />
       </Field>
-      <Field label="개인정보 문의 이메일">
-        <Input name="privacyContactEmail" type="email" defaultValue={initial.privacyContactEmail ?? ""} />
+      <Field label={orgText("privacyEmail")}>
+        <Input name="privacyContactEmail" type="email" autoComplete="email" defaultValue={initial.privacyContactEmail ?? ""} />
       </Field>
       <div className="flex items-end">
-        <Button type="submit">설정 저장</Button>
+        <Button type="submit" loading={loading} data-testid="settings-save">
+          {orgText("saveSettings")}
+        </Button>
       </div>
-      {message ? <p className="md:col-span-2 text-sm text-text-body">{message}</p> : null}
+      {message ? (
+        <p
+          className={`md:col-span-2 text-sm ${isError ? "text-danger" : "text-text-body"}`}
+          role={isError ? "alert" : "status"}
+          aria-live="polite"
+          data-testid="settings-message"
+        >
+          {message}
+        </p>
+      ) : null}
     </form>
   );
 }

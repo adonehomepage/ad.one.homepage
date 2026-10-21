@@ -19,7 +19,7 @@ function readBool(name: string, fallback: boolean) {
 }
 
 export const appConfig = {
-  name: read("APP_NAME", "브랜드명미정"),
+  name: read("APP_NAME", "ADONEBRIDGE"),
   env: read("APP_ENV", "local"),
   publicUrl: read("APP_PUBLIC_URL", "http://localhost:3000"),
   adminUrl: read("APP_ADMIN_URL", "http://localhost:3000"),
@@ -78,5 +78,5 @@ export function dbPoolSize() {
 }
 
 export function brandLabel() {
-  return appConfig.name || "브랜드명미정";
+  return appConfig.name || "ADONEBRIDGE";
 }

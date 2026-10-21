@@ -13,10 +13,12 @@ import { ApiError } from "@/lib/errors";
 import { appConfig } from "@/lib/config";
 import { validateSlug } from "@/lib/validation/slug";
 import { writeAudit } from "@/modules/audit/service";
-import { createTemplateSections, defaultFormFields, placeholderPrivacy, TEMPLATE_CATALOG } from "@/modules/templates/definitions";
+import { createTemplateSections, TEMPLATE_CATALOG } from "@/modules/templates/definitions";
+import { newProjectDraftParts } from "@/modules/projects/draft-defaults";
 import { addCalendarMonths } from "@/lib/datetime";
 import type { PageSection, PageSnapshot, TemplateCode } from "@/types";
 import { nanoid } from "nanoid";
+import { orgText } from "@/modules/admin/org-copy";
 
 export async function checkSlugAvailable(value: string, exceptProjectId?: string) {
   const parsed = validateSlug(value);
@@ -25,7 +27,7 @@ export async function checkSlugAvailable(value: string, exceptProjectId?: string
   }
   const reserved = await db.select().from(reservedSlugs).where(eq(reservedSlugs.slugNormalized, parsed.lookupKey)).limit(1);
   if (reserved[0] && reserved[0].projectId !== exceptProjectId) {
-    throw new ApiError("SLUG_RESERVED", "사용할 수 없는 공개 URL입니다.", 400, "publicSlug");
+    throw new ApiError("SLUG_RESERVED", orgText("slugReserved"), 400, "publicSlug");
   }
   const existing = await db
     .select({ id: projects.id })
@@ -33,9 +35,40 @@ export async function checkSlugAvailable(value: string, exceptProjectId?: string
     .where(eq(projects.publicSlugNormalized, parsed.lookupKey))
     .limit(1);
   if (existing[0] && existing[0].id !== exceptProjectId) {
-    throw new ApiError("SLUG_ALREADY_EXISTS", "이미 사용 중인 공개 URL입니다.", 400, "publicSlug");
+    throw new ApiError("SLUG_ALREADY_EXISTS", orgText("slugTaken"), 400, "publicSlug");
   }
   return parsed;
+}
+
+export async function updatePublicSlug(input: {
+  organizationId: string;
+  projectId: string;
+  userId: string;
+  publicSlug: string;
+}) {
+  const { project } = await getProject(input.organizationId, input.projectId);
+  if (project.publishedAt) {
+    throw new ApiError("SLUG_LOCKED", orgText("slugLocked"), 409, "publicSlug");
+  }
+  const slug = await checkSlugAvailable(input.publicSlug, input.projectId);
+  await db
+    .update(projects)
+    .set({
+      publicSlug: slug.value,
+      publicSlugNormalized: slug.lookupKey,
+      updatedBy: input.userId,
+      updatedAt: new Date(),
+    })
+    .where(eq(projects.id, input.projectId));
+  await writeAudit({
+    organizationId: input.organizationId,
+    actorUserId: input.userId,
+    action: "project.slug_update",
+    resourceType: "project",
+    resourceId: input.projectId,
+    metadata: { publicSlug: slug.value },
+  });
+  return { publicSlug: slug.value };
 }
 
 export async function createProject(input: {
@@ -49,21 +82,21 @@ export async function createProject(input: {
   assignedManagerId?: string;
 }) {
   const name = input.name.trim();
-  if (!name) throw new ApiError("VALIDATION_ERROR", "프로젝트명을 입력해 주세요.", 400, "name");
+  if (!name) throw new ApiError("VALIDATION_ERROR", orgText("projectNameRequired"), 400, "name");
   if (input.durationMonths < 1) {
-    throw new ApiError("VALIDATION_ERROR", "운영기간은 1개월 이상이어야 합니다.", 400, "durationMonths");
+    throw new ApiError("VALIDATION_ERROR", orgText("projectDurationMin"), 400, "durationMonths");
   }
   if (input.durationMonths > appConfig.maxDurationMonths) {
     throw new ApiError(
       "VALIDATION_ERROR",
-      `운영기간 상한은 설정값 ${appConfig.maxDurationMonths}개월입니다.`,
+      orgText("projectDurationMax").replace("{n}", String(appConfig.maxDurationMonths)),
       400,
       "durationMonths",
     );
   }
   const slug = await checkSlugAvailable(input.publicSlug);
   const [template] = await db.select().from(templates).where(eq(templates.code, input.templateCode)).limit(1);
-  if (!template) throw new ApiError("VALIDATION_ERROR", "템플릿을 선택해 주세요.", 400, "templateCode");
+  if (!template) throw new ApiError("VALIDATION_ERROR", orgText("templateRequired"), 400, "templateCode");
 
   const [project] = await db
     .insert(projects)
@@ -81,7 +114,8 @@ export async function createProject(input: {
     })
     .returning();
 
-  const sections = createTemplateSections(input.templateCode, project.id).map((section) => {
+  const draft = newProjectDraftParts({ name, phone: input.phone?.trim() ?? "" });
+  const sections = createTemplateSections(input.templateCode, project.id, draft.globalSettings).map((section) => {
     if (section.sectionType !== "hero") return section;
     return { ...section, content: { ...section.content, headline: name } };
   });
@@ -111,14 +145,10 @@ export async function createProject(input: {
     organizationId: input.organizationId,
     projectId: project.id,
     templateSnapshot: { code: input.templateCode, name: template.name },
-    globalSettings: { phone: input.phone?.trim() ?? "", siteName: name, ctaLabel: "관심고객 등록" },
-    formSettings: {
-      intro: "상담을 원하시면 정보를 남겨 주세요.",
-      successMessage: "관심고객 등록이 완료되었습니다.",
-      fields: defaultFormFields(),
-    },
-    seoSettings: { title: name, description: "", ogImageAssetId: null },
-    privacySettings: placeholderPrivacy(),
+    globalSettings: draft.globalSettings,
+    formSettings: draft.formSettings,
+    seoSettings: draft.seoSettings,
+    privacySettings: draft.privacySettings,
     revision: 1,
     updatedBy: input.userId,
   });
@@ -147,7 +177,8 @@ export async function listProjects(input: {
   const filters = [eq(projects.organizationId, input.organizationId), sql`${projects.status} <> 'DELETED'`];
   if (input.status) filters.push(eq(projects.status, input.status));
   if (input.q) {
-    const like = `%${input.q}%`;
+    const safeQ = input.q.replace(/[%_\\]/g, "");
+    const like = `%${safeQ}%`;
     filters.push(or(ilike(projects.name, like), ilike(projects.publicSlug, like))!);
   }
   if (input.expiringSoon) {
@@ -179,7 +210,7 @@ export async function getProject(organizationId: string, projectId: string) {
     .where(and(eq(projects.id, projectId), eq(projects.organizationId, organizationId)))
     .limit(1);
   if (!row || row.project.status === "DELETED") {
-    throw new ApiError("PROJECT_NOT_FOUND", "프로젝트를 찾을 수 없습니다.", 404);
+    throw new ApiError("PROJECT_NOT_FOUND", orgText("projectNotFound"), 404);
   }
   return row;
 }
@@ -227,9 +258,11 @@ export async function saveDraft(input: {
   sections?: PageSection[];
 }) {
   const { project, draft } = await getDraft(input.organizationId, input.projectId);
-  if (!draft) throw new ApiError("NOT_FOUND", "작업본을 찾을 수 없습니다.", 404);
+  if (!draft) throw new ApiError("NOT_FOUND", orgText("draftNotFound"), 404);
   if (draft.revision !== input.expectedRevision || project.draftRevision !== input.expectedRevision) {
-    throw new ApiError("DRAFT_CONFLICT", "다른 담당자가 먼저 수정했습니다. 최신 작업본을 불러오세요.");
+    throw new ApiError("DRAFT_CONFLICT", orgText("draftConflict"), 409, undefined, undefined, {
+      currentRevision: draft.revision,
+    });
   }
 
   const nextRevision = draft.revision + 1;
@@ -252,7 +285,7 @@ export async function saveDraft(input: {
         const existing = await tx
           .select({ id: projectSections.id })
           .from(projectSections)
-          .where(eq(projectSections.id, section.id))
+          .where(and(eq(projectSections.id, section.id), eq(projectSections.projectId, input.projectId)))
           .limit(1);
         if (existing[0]) {
           await tx
@@ -291,9 +324,12 @@ export async function saveDraft(input: {
         }
       }
       const keepIds = input.sections.map((section) => section.id);
-      const current = await tx.select({ id: projectSections.id, isOriginal: projectSections.isOriginal }).from(projectSections).where(eq(projectSections.projectId, input.projectId));
+      const current = await tx
+        .select({ id: projectSections.id, isOriginal: projectSections.isOriginal, sectionType: projectSections.sectionType })
+        .from(projectSections)
+        .where(eq(projectSections.projectId, input.projectId));
       for (const row of current) {
-        if (!keepIds.includes(row.id) && !row.isOriginal) {
+        if (row.sectionType === "faq" || (!keepIds.includes(row.id) && !row.isOriginal)) {
           await tx.delete(projectSections).where(eq(projectSections.id, row.id));
         }
       }
@@ -317,8 +353,10 @@ export async function saveDraft(input: {
 
 export async function buildSnapshot(organizationId: string, projectId: string): Promise<PageSnapshot> {
   const { project, template, draft, sections } = await getDraft(organizationId, projectId);
-  if (!draft) throw new ApiError("NOT_FOUND", "작업본을 찾을 수 없습니다.", 404);
-  const mapped = sections.map(mapSectionRow);
+  if (!draft) throw new ApiError("NOT_FOUND", orgText("draftNotFound"), 404);
+  const mapped = sections
+    .map(mapSectionRow)
+    .filter((section) => (section.sectionType as string) !== "faq");
   const privacy = draft.privacySettings as PageSnapshot["privacy"];
   const settings = draft.globalSettings as Record<string, unknown>;
   return {

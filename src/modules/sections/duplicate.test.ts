@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canDuplicate, countCopiesForRoot, duplicateSection, gnbItemsFromSections } from "@/modules/sections/duplicate";
+import { canDuplicate, countCopiesForRoot, duplicateSection, gnbItemsFromSections, pinSectionOrder } from "@/modules/sections/duplicate";
 import type { PageSection } from "@/types";
 
 function section(partial: Partial<PageSection> & Pick<PageSection, "id" | "rootSectionId" | "isOriginal" | "sortOrder">): PageSection {
@@ -48,5 +48,17 @@ describe("section duplication", () => {
       section({ id: "c", rootSectionId: "c", isOriginal: true, sortOrder: 2, showInGnb: true, gnbLabel: "C", isVisible: true }),
     ];
     expect(gnbItemsFromSections(sections).map((item) => item.label)).toEqual(["A", "C"]);
+  });
+
+  it("keeps the hero first and the form just before the legal footer", () => {
+    const ordered = pinSectionOrder([
+      section({ id: "legal", rootSectionId: "legal", sectionType: "legal", isOriginal: true, sortOrder: 0 }),
+      section({ id: "overview", rootSectionId: "overview", sectionType: "overview", isOriginal: true, sortOrder: 1 }),
+      section({ id: "hero", rootSectionId: "hero", sectionType: "hero", isOriginal: true, sortOrder: 2 }),
+      section({ id: "form", rootSectionId: "form", sectionType: "lead_form", isOriginal: true, sortOrder: 3 }),
+      section({ id: "gallery", rootSectionId: "gallery", sectionType: "gallery", isOriginal: true, sortOrder: 4 }),
+    ]);
+    expect(ordered.map((item) => item.sectionType)).toEqual(["hero", "overview", "gallery", "lead_form", "legal"]);
+    expect(ordered.map((item) => item.sortOrder)).toEqual([0, 1, 2, 3, 4]);
   });
 });

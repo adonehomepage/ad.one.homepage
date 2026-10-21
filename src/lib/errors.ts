@@ -6,6 +6,7 @@ export type ApiErrorCode =
   | "SLUG_ALREADY_EXISTS"
   | "SLUG_RESERVED"
   | "SLUG_INVALID"
+  | "SLUG_LOCKED"
   | "SECTION_COPY_LIMIT_EXCEEDED"
   | "RECIPIENT_LIMIT_EXCEEDED"
   | "RECIPIENT_NOT_VERIFIED"
@@ -26,6 +27,8 @@ export class ApiError extends Error {
     message: string,
     public readonly status = 400,
     public readonly field?: string,
+    public readonly retryAt?: number,
+    public readonly details?: Record<string, unknown>,
   ) {
     super(message);
     this.name = "ApiError";
@@ -37,5 +40,6 @@ export function errorPayload(error: ApiError) {
     code: error.code,
     message: error.message,
     field: error.field,
+    ...(error.details ? { details: error.details } : {}),
   };
 }

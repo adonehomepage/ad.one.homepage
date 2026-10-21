@@ -1,15 +1,16 @@
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { advertiserRecipients } from "@/lib/db/schema";
+import { advertiserRecipients, notificationJobs } from "@/lib/db/schema";
 import { ApiError } from "@/lib/errors";
 import { appConfig } from "@/lib/config";
 import { isEmail, isKoreanMobile, normalizePhone } from "@/lib/validation/phone";
 import { hashToken, randomToken } from "@/lib/crypto/pii";
-import { notificationProvider } from "@/lib/notifications";
+import { notificationProvider, shouldExposeSandboxLinks } from "@/lib/notifications";
 import { writeAudit } from "@/modules/audit/service";
 import { getProject } from "@/modules/projects/service";
 import { assertRecipientLimit } from "@/modules/recipients/rules";
 import type { NotificationChannel } from "@/types";
+import { orgText } from "@/modules/admin/org-copy";
 
 export { assertRecipientLimit };
 
@@ -45,10 +46,10 @@ export async function addRecipient(input: {
 
   if (input.preferredChannel === "EMAIL") {
     if (!input.email || !isEmail(input.email)) {
-      throw new ApiError("VALIDATION_ERROR", "이메일 수신자는 올바른 이메일이 필요합니다.", 400, "email");
+      throw new ApiError("VALIDATION_ERROR", orgText("recipientEmailRequired"), 400, "email");
     }
   } else if (!input.phone || !isKoreanMobile(input.phone)) {
-    throw new ApiError("VALIDATION_ERROR", "알림톡 수신자는 올바른 휴대전화 번호가 필요합니다.", 400, "phone");
+    throw new ApiError("VALIDATION_ERROR", orgText("recipientPhoneRequired"), 400, "phone");
   }
 
   const token = randomToken();
@@ -69,7 +70,7 @@ export async function addRecipient(input: {
     })
     .returning();
 
-  const verifyUrl = `${appConfig.adminUrl}/api/public/recipients/verify?token=${token}`;
+  const verifyUrl = `${appConfig.adminUrl}/verify-recipient?token=${token}`;
   await notificationProvider.sendRecipientVerify({
     channel: input.preferredChannel === "EMAIL" ? "EMAIL" : "KAKAO_ALIMTALK",
     to: input.preferredChannel === "EMAIL" ? input.email! : input.phone!,
@@ -82,7 +83,7 @@ export async function addRecipient(input: {
     resourceType: "advertiser_recipient",
     resourceId: row.id,
   });
-  return { recipient: row, verifyUrl: appConfig.env === "local" ? verifyUrl : undefined };
+  return { recipient: row, verifyUrl: shouldExposeSandboxLinks() ? verifyUrl : undefined };
 }
 
 export async function verifyRecipient(token: string) {
@@ -91,7 +92,7 @@ export async function verifyRecipient(token: string) {
     .from(advertiserRecipients)
     .where(eq(advertiserRecipients.verificationTokenHash, hashToken(token)))
     .limit(1);
-  if (!row) throw new ApiError("NOT_FOUND", "유효하지 않은 인증 링크입니다.", 404);
+  if (!row) throw new ApiError("NOT_FOUND", orgText("recipientVerifyInvalid"), 404);
   await db
     .update(advertiserRecipients)
     .set({ verificationStatus: "VERIFIED", verifiedAt: new Date(), verificationTokenHash: null, updatedAt: new Date() })
@@ -132,7 +133,7 @@ export async function updateRecipient(input: {
       ),
     )
     .limit(1);
-  if (!row) throw new ApiError("NOT_FOUND", "수신자를 찾을 수 없습니다.", 404);
+  if (!row) throw new ApiError("NOT_FOUND", orgText("recipientNotFound"), 404);
 
   const contactChanged =
     (input.patch.phone && normalizePhone(input.patch.phone) !== row.phone) ||
@@ -149,6 +150,7 @@ export async function updateRecipient(input: {
     assertRecipientLimit(Number(active[0]?.count ?? 0));
   }
 
+  const token = contactChanged ? randomToken() : null;
   await db
     .update(advertiserRecipients)
     .set({
@@ -162,10 +164,34 @@ export async function updateRecipient(input: {
       receiveExpiryAlerts: input.patch.receiveExpiryAlerts ?? row.receiveExpiryAlerts,
       verificationStatus: contactChanged ? "PENDING" : row.verificationStatus,
       verifiedAt: contactChanged ? null : row.verifiedAt,
+      verificationTokenHash: contactChanged && token ? hashToken(token) : row.verificationTokenHash,
       updatedBy: input.userId,
       updatedAt: new Date(),
     })
     .where(eq(advertiserRecipients.id, row.id));
+
+  if (contactChanged && token) {
+    const to = channel === "EMAIL" ? nextEmail : nextPhone;
+    if (to) {
+      await notificationProvider.sendRecipientVerify({
+        channel: channel === "EMAIL" ? "EMAIL" : "KAKAO_ALIMTALK",
+        to,
+        verifyUrl: `${appConfig.adminUrl}/verify-recipient?token=${token}`,
+      });
+    }
+  }
+
+  if (input.patch.isActive === false) {
+    await db
+      .update(notificationJobs)
+      .set({ status: "CANCELLED", errorMessageRedacted: "recipient_inactive", updatedAt: new Date() })
+      .where(
+        and(
+          eq(notificationJobs.recipientId, row.id),
+          eq(notificationJobs.status, "QUEUED"),
+        ),
+      );
+  }
 
   await writeAudit({
     organizationId: input.organizationId,

@@ -1,12 +1,17 @@
 import { z } from "zod";
 import { handleApiError, jsonOk } from "@/lib/api/http";
+import { assertPublicMutationOrigin } from "@/lib/api/origin";
+import { parseJsonBody } from "@/lib/api/parse";
+import { consumeRateLimit } from "@/lib/auth/rate-limit";
+import { ApiError } from "@/lib/errors";
 import { trackEvent } from "@/modules/analytics/service";
 import { getPublishedBySlug } from "@/modules/publishing/service";
 import { slugLookupKey } from "@/lib/validation/slug";
+import { orgText } from "@/modules/admin/org-copy";
 import type { AnalyticsEventName } from "@/types";
 
 const schema = z.object({
-  slug: z.string(),
+  slug: z.string().min(1),
   eventName: z.enum([
     "page_view",
     "session_start",
@@ -28,7 +33,13 @@ const schema = z.object({
 
 export async function POST(request: Request) {
   try {
-    const body = schema.parse(await request.json());
+    assertPublicMutationOrigin(request);
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
+    const limited = consumeRateLimit(`analytics:${ip}`, 120, 60_000);
+    if (!limited.ok) {
+      throw new ApiError("RATE_LIMITED", orgText("analyticsRateLimited"), 429, undefined, limited.retryAt);
+    }
+    const body = await parseJsonBody(request, schema);
     const published = await getPublishedBySlug(slugLookupKey(body.slug));
     if (!published) return jsonOk({ ok: true });
     await trackEvent({

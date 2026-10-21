@@ -1,6 +1,7 @@
 import { createHmac, createCipheriv, createDecipheriv, randomBytes, scryptSync } from "node:crypto";
 import { appConfig } from "@/lib/config";
 import { ApiError } from "@/lib/errors";
+import { orgText } from "@/modules/admin/org-copy";
 
 function keyFromSecret(secret: string, salt: string) {
   return scryptSync(secret, salt, 32);
@@ -9,7 +10,7 @@ function keyFromSecret(secret: string, salt: string) {
 export function encryptPii(plaintext: string) {
   const secret = appConfig.piiEncryptionKey;
   if (!secret) {
-    throw new ApiError("INTERNAL_ERROR", "개인정보 암호화 키가 설정되지 않았습니다.", 500);
+    throw new ApiError("INTERNAL_ERROR", orgText("piiKeyMissing"), 500);
   }
   const iv = randomBytes(12);
   const key = keyFromSecret(secret, "adit-pii-v1");
@@ -22,7 +23,7 @@ export function encryptPii(plaintext: string) {
 export function decryptPii(payload: string) {
   const secret = appConfig.piiEncryptionKey;
   if (!secret) {
-    throw new ApiError("INTERNAL_ERROR", "개인정보 암호화 키가 설정되지 않았습니다.", 500);
+    throw new ApiError("INTERNAL_ERROR", orgText("piiKeyMissing"), 500);
   }
   const [iv, tag, data] = payload.split(".");
   const key = keyFromSecret(secret, "adit-pii-v1");
@@ -34,7 +35,7 @@ export function decryptPii(payload: string) {
 export function phoneLookupHash(normalizedPhone: string) {
   const secret = appConfig.piiLookupHmacKey;
   if (!secret) {
-    throw new ApiError("INTERNAL_ERROR", "연락처 검색 키가 설정되지 않았습니다.", 500);
+    throw new ApiError("INTERNAL_ERROR", orgText("phoneLookupKeyMissing"), 500);
   }
   return createHmac("sha256", secret).update(normalizedPhone).digest("hex");
 }

@@ -1,9 +1,24 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { brandLabel } from "@/lib/config";
+import { orgText } from "@/modules/admin/org-copy";
+
+export const metadata: Metadata = {
+  title: orgText("termsTitle"),
+  description: orgText("termsDescription"),
+  robots: { index: true, follow: true },
+};
+
 export default function TermsPage() {
   return (
     <main className="mx-auto max-w-3xl px-6 py-16">
-      <h1 className="text-3xl font-bold">이용 안내</h1>
-      <p className="mt-6 text-text-body">
-        이 서비스는 광고사 직원 초대 기반의 분양 홈페이지 제작·운영 도구입니다. 결제, 공개 회원가입, 광고주 계정은 포함하지 않습니다.
+      <p className="text-sm font-medium text-primary">{brandLabel()}</p>
+      <h1 className="mt-2 text-3xl font-bold">{orgText("termsTitle")}</h1>
+      <p className="mt-6 text-text-body">{orgText("termsBody")}</p>
+      <p className="mt-10 text-sm text-text-muted">
+        <Link href="/privacy" className="text-primary">
+          {orgText("privacyTitle")}
+        </Link>
       </p>
     </main>
   );

@@ -23,6 +23,7 @@ export function trackPublicEvent(slug: string, eventName: string, metadata?: Rec
   void fetch("/api/public/analytics/events", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    keepalive: true,
     body: JSON.stringify({
       slug,
       eventName,
@@ -39,6 +40,8 @@ export function trackPublicEvent(slug: string, eventName: string, metadata?: Rec
       },
       metadata,
     }),
+  }).catch(() => {
+    /* 이탈·네트워크 실패는 무시 */
   });
 }
 
@@ -59,6 +62,8 @@ export function TrackedLink({
   eventName,
   className,
   metadata,
+  onClick,
+  target,
   children,
 }: {
   href: string;
@@ -66,13 +71,20 @@ export function TrackedLink({
   eventName: string;
   className?: string;
   metadata?: Record<string, string>;
+  onClick?: () => void;
+  target?: string;
   children: React.ReactNode;
 }) {
   return (
     <a
       href={href}
+      target={target}
+      rel={target === "_blank" ? "noreferrer" : undefined}
       className={className}
-      onClick={() => trackPublicEvent(slug, eventName, metadata)}
+      onClick={() => {
+        trackPublicEvent(slug, eventName, metadata);
+        onClick?.();
+      }}
     >
       {children}
     </a>

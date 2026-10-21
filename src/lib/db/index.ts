@@ -2,6 +2,7 @@ import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
 import * as schema from "@/lib/db/schema";
 import { appConfig, dbPoolSize } from "@/lib/config";
+import { orgText } from "@/modules/admin/org-copy";
 
 type Db = ReturnType<typeof drizzle<typeof schema>>;
 
@@ -12,7 +13,7 @@ const globalForDb = globalThis as unknown as {
 
 function createDb(): Db {
   if (!appConfig.databaseUrl) {
-    throw new Error("DATABASE_URL이 설정되지 않았습니다.");
+    throw new Error(orgText("dbUrlMissing"));
   }
   const max = dbPoolSize();
   const sql =

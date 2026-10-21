@@ -7,11 +7,12 @@ import { hashPassword, validatePasswordStrength } from "@/lib/auth/password";
 import { revokeUserSessions } from "@/lib/auth/session";
 import { ApiError } from "@/lib/errors";
 import { INVITE_TTL_HOURS } from "@/lib/constants";
-import { notificationProvider } from "@/lib/notifications";
+import { notificationProvider, shouldExposeSandboxLinks } from "@/lib/notifications";
 import { writeAudit } from "@/modules/audit/service";
 import { appConfig } from "@/lib/config";
 import { isEmail } from "@/lib/validation/phone";
 import type { MemberRole } from "@/types";
+import { orgText } from "@/modules/admin/org-copy";
 
 export async function listMembers(organizationId: string) {
   return db
@@ -39,7 +40,7 @@ export async function inviteMember(input: {
 }) {
   const email = input.email.trim().toLowerCase();
   if (!isEmail(email)) {
-    throw new ApiError("VALIDATION_ERROR", "올바른 이메일을 입력해 주세요.", 400, "email");
+    throw new ApiError("VALIDATION_ERROR", orgText("emailInvalid"), 400, "email");
   }
 
   const existingUser = await db.select().from(userProfiles).where(eq(userProfiles.email, email)).limit(1);
@@ -50,40 +51,62 @@ export async function inviteMember(input: {
       .where(and(eq(organizationMembers.organizationId, input.organizationId), eq(organizationMembers.userId, existingUser[0].id)))
       .limit(1);
     if (existingMember[0] && existingMember[0].status !== "EXPIRED") {
-      throw new ApiError("CONFLICT", "이미 초대되었거나 소속된 계정입니다.");
+      throw new ApiError("CONFLICT", orgText("memberAlreadyInvited"));
     }
   }
 
   const token = randomToken();
-  await db.insert(memberInvitations).values({
-    organizationId: input.organizationId,
-    email,
-    name: input.name.trim(),
-    role: input.role,
-    tokenHash: hashToken(token),
-    invitedBy: input.actorUserId,
-    expiresAt: addHours(new Date(), INVITE_TTL_HOURS),
-  });
+  await db.transaction(async (tx) => {
+    await tx
+      .update(memberInvitations)
+      .set({ revokedAt: new Date() })
+      .where(
+        and(
+          eq(memberInvitations.organizationId, input.organizationId),
+          eq(memberInvitations.email, email),
+          isNull(memberInvitations.acceptedAt),
+          isNull(memberInvitations.revokedAt),
+        ),
+      );
 
-  if (!existingUser[0]) {
-    const [user] = await db
-      .insert(userProfiles)
-      .values({ email, name: input.name.trim(), status: "INVITED" })
-      .returning();
-    await db.insert(organizationMembers).values({
+    await tx.insert(memberInvitations).values({
       organizationId: input.organizationId,
-      userId: user.id,
+      email,
+      name: input.name.trim(),
       role: input.role,
-      status: "INVITED",
+      tokenHash: hashToken(token),
       invitedBy: input.actorUserId,
+      expiresAt: addHours(new Date(), INVITE_TTL_HOURS),
     });
-  }
+
+    if (!existingUser[0]) {
+      const [user] = await tx
+        .insert(userProfiles)
+        .values({ email, name: input.name.trim(), status: "INVITED" })
+        .returning();
+      await tx.insert(organizationMembers).values({
+        organizationId: input.organizationId,
+        userId: user.id,
+        role: input.role,
+        status: "INVITED",
+        invitedBy: input.actorUserId,
+      });
+    } else if (existingUser[0]) {
+      await tx
+        .update(organizationMembers)
+        .set({ status: "INVITED", role: input.role, invitedBy: input.actorUserId, updatedAt: new Date() })
+        .where(
+          and(eq(organizationMembers.organizationId, input.organizationId), eq(organizationMembers.userId, existingUser[0].id)),
+        );
+      await tx.update(userProfiles).set({ name: input.name.trim(), status: "INVITED", updatedAt: new Date() }).where(eq(userProfiles.id, existingUser[0].id));
+    }
+  });
 
   const inviteUrl = `${appConfig.adminUrl}/invite/${token}`;
   await notificationProvider.sendInviteEmail({
     to: email,
     inviteUrl,
-    organizationName: "워크스페이스",
+    organizationName: orgText("workspaceName"),
   });
   await writeAudit({
     organizationId: input.organizationId,
@@ -92,7 +115,19 @@ export async function inviteMember(input: {
     resourceType: "member_invitation",
     metadata: { email },
   });
-  return { inviteUrl: appConfig.env === "local" ? inviteUrl : undefined };
+  return { inviteUrl: shouldExposeSandboxLinks() ? inviteUrl : undefined };
+}
+
+/** 초대 수락 전 이메일 표시용(패스워드 매니저 autocomplete). 민감 정보는 이메일만. */
+export async function peekInvitation(token: string) {
+  if (!token.trim()) return null;
+  const [invite] = await db
+    .select({ email: memberInvitations.email, name: memberInvitations.name, expiresAt: memberInvitations.expiresAt, revokedAt: memberInvitations.revokedAt, acceptedAt: memberInvitations.acceptedAt })
+    .from(memberInvitations)
+    .where(eq(memberInvitations.tokenHash, hashToken(token)))
+    .limit(1);
+  if (!invite || invite.revokedAt || invite.acceptedAt || isAfter(new Date(), invite.expiresAt)) return null;
+  return { email: invite.email, name: invite.name };
 }
 
 export async function acceptInvitation(token: string, password: string) {
@@ -106,7 +141,7 @@ export async function acceptInvitation(token: string, password: string) {
     .where(eq(memberInvitations.tokenHash, hashToken(token)))
     .limit(1);
   if (!invite || invite.revokedAt || invite.acceptedAt) {
-    throw new ApiError("NOT_FOUND", "유효하지 않은 초대입니다.", 404);
+    throw new ApiError("NOT_FOUND", orgText("inviteInvalid"), 404);
   }
   if (isAfter(new Date(), invite.expiresAt)) {
     const [invitedUser] = await db.select().from(userProfiles).where(eq(userProfiles.email, invite.email)).limit(1);
@@ -116,12 +151,21 @@ export async function acceptInvitation(token: string, password: string) {
         .set({ status: "EXPIRED", updatedAt: new Date() })
         .where(and(eq(organizationMembers.userId, invitedUser.id), eq(organizationMembers.organizationId, invite.organizationId)));
     }
-    throw new ApiError("VALIDATION_ERROR", "초대 링크가 만료되었습니다. 관리자에게 재초대를 요청해 주세요.");
+    throw new ApiError("VALIDATION_ERROR", orgText("inviteExpired"));
+  }
+
+  const [claimed] = await db
+    .update(memberInvitations)
+    .set({ acceptedAt: new Date() })
+    .where(and(eq(memberInvitations.id, invite.id), isNull(memberInvitations.acceptedAt), isNull(memberInvitations.revokedAt)))
+    .returning();
+  if (!claimed) {
+    throw new ApiError("NOT_FOUND", orgText("inviteInvalid"), 404);
   }
 
   const [user] = await db.select().from(userProfiles).where(eq(userProfiles.email, invite.email)).limit(1);
   if (!user) {
-    throw new ApiError("NOT_FOUND", "초대 대상 계정을 찾을 수 없습니다.", 404);
+    throw new ApiError("NOT_FOUND", orgText("inviteUserMissing"), 404);
   }
   await db
     .update(userProfiles)
@@ -131,7 +175,6 @@ export async function acceptInvitation(token: string, password: string) {
     .update(organizationMembers)
     .set({ status: "ACTIVE", role: invite.role, updatedAt: new Date() })
     .where(and(eq(organizationMembers.userId, user.id), eq(organizationMembers.organizationId, invite.organizationId)));
-  await db.update(memberInvitations).set({ acceptedAt: new Date() }).where(eq(memberInvitations.id, invite.id));
   await writeAudit({
     organizationId: invite.organizationId,
     actorUserId: user.id,
@@ -167,11 +210,11 @@ export async function suspendMember(input: {
     .from(organizationMembers)
     .where(and(eq(organizationMembers.id, input.memberId), eq(organizationMembers.organizationId, input.organizationId)))
     .limit(1);
-  if (!member) throw new ApiError("NOT_FOUND", "직원을 찾을 수 없습니다.", 404);
+  if (!member) throw new ApiError("NOT_FOUND", orgText("memberNotFound"), 404);
   if (member.role === "SYSTEM_ADMIN") {
     const remaining = await countActiveAdmins(input.organizationId, member.userId);
     if (remaining < 1) {
-      throw new ApiError("FORBIDDEN", "마지막 활성 시스템 관리자는 정지할 수 없습니다.");
+      throw new ApiError("FORBIDDEN", orgText("memberLastAdminSuspend"));
     }
   }
   await db
@@ -189,13 +232,17 @@ export async function suspendMember(input: {
   });
 }
 
-export async function reactivateMember(input: { organizationId: string; actorUserId: string; memberId: string }) {
+export async function reactivateMember(input: {
+  organizationId: string;
+  actorUserId: string;
+  memberId: string;
+}) {
   const [member] = await db
     .select()
     .from(organizationMembers)
     .where(and(eq(organizationMembers.id, input.memberId), eq(organizationMembers.organizationId, input.organizationId)))
     .limit(1);
-  if (!member) throw new ApiError("NOT_FOUND", "직원을 찾을 수 없습니다.", 404);
+  if (!member) throw new ApiError("NOT_FOUND", orgText("memberNotFound"), 404);
   await db
     .update(organizationMembers)
     .set({ status: "ACTIVE", suspendedAt: null, suspendedBy: null, updatedAt: new Date() })
@@ -221,11 +268,11 @@ export async function changeRole(input: {
     .from(organizationMembers)
     .where(and(eq(organizationMembers.id, input.memberId), eq(organizationMembers.organizationId, input.organizationId)))
     .limit(1);
-  if (!member) throw new ApiError("NOT_FOUND", "직원을 찾을 수 없습니다.", 404);
+  if (!member) throw new ApiError("NOT_FOUND", orgText("memberNotFound"), 404);
   if (member.role === "SYSTEM_ADMIN" && input.role !== "SYSTEM_ADMIN") {
     const remaining = await countActiveAdmins(input.organizationId, member.userId);
     if (remaining < 1) {
-      throw new ApiError("FORBIDDEN", "마지막 활성 시스템 관리자의 권한은 해제할 수 없습니다.");
+      throw new ApiError("FORBIDDEN", orgText("memberLastAdminDemote"));
     }
   }
   await db.update(organizationMembers).set({ role: input.role, updatedAt: new Date() }).where(eq(organizationMembers.id, member.id));
@@ -243,7 +290,13 @@ export async function revokeInvitation(input: { organizationId: string; actorUse
   await db
     .update(memberInvitations)
     .set({ revokedAt: new Date() })
-    .where(and(eq(memberInvitations.id, input.invitationId), eq(memberInvitations.organizationId, input.organizationId), isNull(memberInvitations.acceptedAt)));
+    .where(
+      and(
+        eq(memberInvitations.id, input.invitationId),
+        eq(memberInvitations.organizationId, input.organizationId),
+        isNull(memberInvitations.acceptedAt),
+      ),
+    );
   await writeAudit({
     organizationId: input.organizationId,
     actorUserId: input.actorUserId,

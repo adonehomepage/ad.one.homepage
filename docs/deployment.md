@@ -1,7 +1,8 @@
 # Vercel 배포 · 환경 분리 (Preview = dev, Production = prod)
 
 운영 브랜치는 **`main`**, 개발 점검은 **`deploy/dev`** 입니다.  
-환경 분리는 Vercel **Preview(개발)** / **Production(운영)** 과 각각의 시크릿·DB·R2 버킷으로 합니다.
+환경 분리는 Vercel **Preview(개발)** / **Production(운영)** 과 각각의 시크릿·DB로 합니다.  
+파일 저장소(Cloudflare R2)는 결제수단을 등록할 수 있을 때까지 미룹니다. 배포 준비 중에 R2 결제나 버킷 생성을 요구하지 않습니다.
 
 | 주소 | 환경 | 브랜치 |
 |------|------|--------|
@@ -46,12 +47,17 @@
 | `APP_PUBLIC_URL` | `https://ad-one-homepage-dev.vercel.app` | `https://ad-one-homepage.vercel.app` |
 | `APP_ADMIN_URL` | 개발 주소와 동일 | 운영 주소와 동일 |
 | `DATABASE_URL` | **dev** Postgres | **prod** Postgres |
+| `ERROR_MONITORING_DSN` | 선택(dev 프로젝트) | 운영 DSN |
+
+스토리지(R2)는 **나중**에 붙입니다. 결제수단 등록 전에는 아래 키를 Vercel에 넣지 않아도 됩니다.
+
+| 키 (R2 연결 시) | Preview(dev) | Production(prod) |
+|-----------------|--------------|------------------|
 | `STORAGE_PROVIDER` | `s3` | `s3` |
 | `STORAGE_BUCKET_PUBLIC` | `public-assets-dev` | `public-assets` |
 | `STORAGE_BUCKET_PRIVATE` | `private-assets-dev` | `private-assets` |
 | `STORAGE_PUBLIC_BASE_URL` | `https://ad-one-homepage-dev.vercel.app/media` | `https://ad-one-homepage.vercel.app/media` |
 | `S3_*` | 같은 R2 계정 자격 증명, 버킷 이름만 다름 | 왼쪽과 같은 계정 |
-| `ERROR_MONITORING_DSN` | 선택(dev 프로젝트) | 운영 DSN |
 
 선택 플래그:
 
@@ -71,10 +77,12 @@ Vercel에 `CRON_SECRET`을 넣으면 Cron 요청에 `Authorization: Bearer …`�
 
 ## 스토리지
 
-서버리스에서는 `STORAGE_PROVIDER=local`이 동작하지 않습니다.
-
-- 로컬: `local` + `./storage` + `/media/...`
-- Preview/Prod: Cloudflare R2를 S3 호환 API로 사용 (`STORAGE_PROVIDER=s3`)
+- 로컬: `STORAGE_PROVIDER=local` + `./storage` + `/media/...`
+- Vercel 배포 준비: R2 결제·버킷 생성은 **하지 않습니다**. DB·시크릿·앱 배포를 먼저 맞춥니다.
+  - `STORAGE_PROVIDER=local`인 채 Preview/Production에 올리면 `/api/uploads`는 **503**과 안내 문구로 막힙니다. (`storageLocalUnavailable`)
+  - `/api/ready`의 `storageWritable`로 쓰기 가능 여부를 확인할 수 있습니다.
+- R2를 켤 때(결제수단 등록 후): Cloudflare R2를 S3 호환 API로 사용 (`STORAGE_PROVIDER=s3`)
+  - 서버리스에서는 `local`이 동작하지 않으므로, 이미지 업로드가 필요해지면 그때 R2를 연결합니다.
   - 버킷 4개: `public-assets`, `private-assets`, `public-assets-dev`, `private-assets-dev`
   - 버킷 공개 접근은 끈 채로 둡니다. 이미지는 앱의 `/media/{버킷}/{키}`가 R2에서 읽어 보냅니다.
   - `S3_REGION=auto`, `S3_FORCE_PATH_STYLE=true`
@@ -94,9 +102,10 @@ Vercel에 `CRON_SECRET`을 넣으면 Cron 요청에 `Authorization: Bearer …`�
 - [ ] `LEAD_COLLECTION_ENABLED=false` (확정 전)
 - [ ] 알림 공급자 sandbox
 - [ ] `SESSION_SECRET` / PII 키가 환경별로 다르고 충분히 긴가
-- [ ] `/api/health` 200, `/api/ready` 200
+- [ ] `/api/health` 200 (`ok`, `ts`, `buildId`), `/api/ready` 200 (`storageWritable`, `errorMonitoringConfigured`, `buildId` 확인)
+- [ ] `/privacy`, `/terms`, `/sitemap.xml` 응답 확인
 - [ ] Preview cron이 `{ skipped: true }` (실데이터 미변경)
-- [ ] 스토리지 = s3
+- [ ] (나중) R2 결제수단 등록 뒤 스토리지 = s3 · 버킷 분리
 - [ ] 미완성 관심고객 UI가 prod에서 숨겨짐(또는 `FEATURE_LEAD_ADMIN` 의도적 허용)
 - [ ] 시크릿이 PR·스크린샷·문서에 없음
 

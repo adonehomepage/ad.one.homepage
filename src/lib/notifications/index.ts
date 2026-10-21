@@ -1,4 +1,11 @@
+import { appConfig } from "@/lib/config";
+
 export type SendResult = { ok: boolean; providerMessageId?: string; error?: string };
+
+/** 로컬이거나 메일 샌드박스일 때 초대·인증·재설정 링크를 관리자 UI에 돌려줍니다. */
+export function shouldExposeSandboxLinks() {
+  return appConfig.env === "local" || appConfig.emailProvider === "sandbox";
+}
 
 export type LeadNotificationInput = {
   channel: "KAKAO_ALIMTALK" | "EMAIL";
@@ -8,7 +15,9 @@ export type LeadNotificationInput = {
   leadPhone: string;
   unitType?: string;
   inquiry?: string;
+  details?: string;
   submittedAt: string;
+  purposeDisclaimer?: string;
 };
 
 export type ExpiryNotificationInput = {
@@ -30,7 +39,12 @@ export interface NotificationProvider {
 
 export class SandboxNotificationProvider implements NotificationProvider {
   async sendLeadNotification(input: LeadNotificationInput): Promise<SendResult> {
-    console.info("[sandbox-notify] lead", { channel: input.channel, to: redact(input.to), projectName: input.projectName });
+    console.info("[sandbox-notify] lead", {
+      channel: input.channel,
+      to: redact(input.to),
+      projectName: input.projectName,
+      purposeDisclaimer: input.purposeDisclaimer,
+    });
     return { ok: true, providerMessageId: `sandbox-${Date.now()}` };
   }
   async sendExpiryNotification(input: ExpiryNotificationInput): Promise<SendResult> {

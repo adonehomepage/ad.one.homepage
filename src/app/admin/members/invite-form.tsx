@@ -3,42 +3,82 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
+import { isEmail } from "@/lib/validation/phone";
+import { orgText } from "@/modules/admin/org-copy";
 
 export function InviteForm() {
   const [message, setMessage] = useState("");
+  const [isError, setIsError] = useState(false);
+  const [loading, setLoading] = useState(false);
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const res = await fetch("/api/members", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: form.get("name"),
-        email: form.get("email"),
-        role: form.get("role"),
-      }),
-    });
-    const json = await res.json();
-    setMessage(res.ok ? json.inviteUrl ?? "초대를 발송했습니다." : json.message);
+    setLoading(true);
+    setMessage("");
+    setIsError(false);
+    const formEl = event.currentTarget;
+    const form = new FormData(formEl);
+    const email = String(form.get("email") ?? "").trim();
+    if (!isEmail(email)) {
+      setLoading(false);
+      setIsError(true);
+      setMessage(orgText("emailInvalid"));
+      return;
+    }
+    try {
+      const res = await fetch("/api/members", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.get("name"),
+          email,
+          role: form.get("role"),
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setIsError(true);
+        setMessage(json.message ?? orgText("inviteSendFail"));
+        return;
+      }
+      setIsError(false);
+      setMessage(json.inviteUrl ? `${orgText("inviteSent")} ${json.inviteUrl}` : orgText("inviteSent"));
+      formEl.reset();
+    } catch {
+      setIsError(true);
+      setMessage(orgText("inviteSendFail"));
+    } finally {
+      setLoading(false);
+    }
   }
   return (
-    <form onSubmit={onSubmit} className="grid gap-3 rounded-2xl bg-white p-5 md:grid-cols-4">
-      <Field label="이름">
-        <Input name="name" required />
+    <form onSubmit={onSubmit} className="grid gap-3 ui-card md:grid-cols-4">
+      <Field label={orgText("colName")}>
+        <Input name="name" autoComplete="name" required data-testid="invite-name" />
       </Field>
-      <Field label="이메일">
-        <Input name="email" type="email" required />
+      <Field label={orgText("colEmail")}>
+        <Input name="email" type="email" autoComplete="email" required data-testid="invite-email" />
       </Field>
-      <Field label="역할">
-        <select name="role" className="h-11 w-full rounded-lg border border-border px-3">
-          <option value="MEMBER">직원</option>
-          <option value="SYSTEM_ADMIN">시스템 관리자</option>
+      <Field label={orgText("colRole")}>
+        <select name="role" className="ui-field" data-testid="invite-role">
+          <option value="MEMBER">{orgText("roleMember")}</option>
+          <option value="SYSTEM_ADMIN">{orgText("roleAdmin")}</option>
         </select>
       </Field>
       <div className="flex items-end">
-        <Button type="submit">초대</Button>
+        <Button type="submit" loading={loading} data-testid="invite-submit">
+          {orgText("invite")}
+        </Button>
       </div>
-      {message ? <p className="md:col-span-4 text-sm text-text-body">{message}</p> : null}
+      {message ? (
+        <p
+          className={`md:col-span-4 text-sm ${isError ? "text-danger" : "text-text-body"}`}
+          role={isError ? "alert" : "status"}
+          aria-live="polite"
+          data-testid="invite-message"
+        >
+          {message}
+        </p>
+      ) : null}
     </form>
   );
 }

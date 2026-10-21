@@ -111,11 +111,12 @@ export async function getProjectAnalytics(organizationId: string, projectId: str
     .select({
       source: analyticsEvents.utmSource,
       medium: analyticsEvents.utmMedium,
+      campaign: analyticsEvents.utmCampaign,
       views: sql<number>`count(*) filter (where ${analyticsEvents.eventName} = 'page_view')`,
     })
     .from(analyticsEvents)
     .where(and(eq(analyticsEvents.projectId, projectId), gte(analyticsEvents.occurredAt, from), lte(analyticsEvents.occurredAt, to)))
-    .groupBy(analyticsEvents.utmSource, analyticsEvents.utmMedium);
+    .groupBy(analyticsEvents.utmSource, analyticsEvents.utmMedium, analyticsEvents.utmCampaign);
 
   const devices = await db
     .select({

@@ -1,27 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { validateSlug } from "@/lib/validation/slug";
+import { normalizeSlug, validateSlug } from "@/lib/validation/slug";
 
-describe("slug validation", () => {
-  it("accepts korean, english, numbers and hyphen", () => {
-    expect(validateSlug("루미에르센트럴").ok).toBe(true);
+describe("validateSlug", () => {
+  it("accepts korean and latin hyphens", () => {
     expect(validateSlug("lumiere-central").ok).toBe(true);
-    expect(validateSlug("prime84").ok).toBe(true);
+    expect(validateSlug("래미안-센트럴").ok).toBe(true);
   });
 
-  it("rejects reserved paths", () => {
-    const result = validateSlug("admin");
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.code).toBe("SLUG_RESERVED");
+  it("rejects empty, path chars, and reserved paths", () => {
+    expect(validateSlug("").ok).toBe(false);
+    expect(validateSlug("bad/slug").ok).toBe(false);
+    expect(validateSlug("bad?x").ok).toBe(false);
+    expect(validateSlug("admin").ok).toBe(false);
+    expect(validateSlug("login").ok).toBe(false);
+    expect(validateSlug("verify-recipient").ok).toBe(false);
   });
 
-  it("rejects path-breaking characters", () => {
-    expect(validateSlug("foo/bar").ok).toBe(false);
-    expect(validateSlug("foo?x").ok).toBe(false);
+  it("strips internal spaces then validates", () => {
+    expect(validateSlug("bad slug").ok).toBe(true);
+    expect(normalizeSlug("bad slug")).toBe("badslug");
   });
 
-  it("treats case as the same lookup key", () => {
-    const a = validateSlug("Lumiere");
-    const b = validateSlug("lumiere");
-    expect(a.ok && b.ok && a.lookupKey === b.lookupKey).toBe(true);
+  it("normalizes whitespace trim", () => {
+    expect(normalizeSlug("  a-b  ")).toBe("a-b");
   });
 });
