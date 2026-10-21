@@ -45,11 +45,8 @@ export default async function ProjectLeadsPage({
   const text = (key: string, fallback: string) => leadText(settings, key, fallback);
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{text("shellProjectLeads", "프로젝트 관심고객")}</h1>
-        <ExportLeadsButton projectId={projectId} label={text("shellExportCsv", "CSV 내보내기")} />
-      </div>
-      <form className="flex gap-2">
+      <h1 className="text-xl font-bold tracking-tight">{text("shellProjectLeads", "프로젝트 관심고객")}</h1>
+      <form className="flex items-center gap-2">
         <Input
           name="q"
           defaultValue={q}
@@ -57,7 +54,8 @@ export default async function ProjectLeadsPage({
           aria-label={text("shellSearchAria", "검색어")}
           className="min-w-0 flex-1"
         />
-        <Button variant="ghost" type="submit">{text("shellSearch", "검색")}</Button>
+        <Button variant="ghost" type="submit" className="shrink-0">{text("shellSearch", "검색")}</Button>
+        <ExportLeadsButton projectId={projectId} label={text("shellExportCsv", "CSV 내보내기")} />
       </form>
       {items.length === 0 ? (
         <EmptyState
@@ -79,7 +77,7 @@ export default async function ProjectLeadsPage({
       {hasPrev || hasNext ? (
         <div className="flex items-center justify-between gap-3">
           {hasPrev ? (
-            <Link href={projectLeadsQuery(projectId, { q, page: page - 1 })} className="text-[17px] font-semibold text-primary">
+            <Link href={projectLeadsQuery(projectId, { q, page: page - 1 })} className="text-sm font-semibold text-primary">
               {text("shellPagePrev", "이전")}
             </Link>
           ) : (
@@ -87,7 +85,7 @@ export default async function ProjectLeadsPage({
           )}
           <span className="text-sm text-text-muted">{text("shellPageStatus", "{page}페이지").replace("{page}", String(page))}</span>
           {hasNext ? (
-            <Link href={projectLeadsQuery(projectId, { q, page: page + 1 })} className="text-[17px] font-semibold text-primary">
+            <Link href={projectLeadsQuery(projectId, { q, page: page + 1 })} className="text-sm font-semibold text-primary">
               {text("shellPageNext", "다음")}
             </Link>
           ) : (

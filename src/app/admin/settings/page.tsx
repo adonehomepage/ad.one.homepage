@@ -26,26 +26,21 @@ export default async function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">{orgText("navSettings")}</h1>
+        <h1 className="text-xl font-bold tracking-tight">{orgText("navSettings")}</h1>
         <p className="mt-2 text-sm text-text-body">{orgText("settingsBody")}</p>
       </div>
-      <dl className="grid gap-4 ui-card md:grid-cols-2">
-        <div>
-          <dt className="text-sm text-text-muted">{orgText("deployEnv")}</dt>
-          <dd className="mt-1 font-medium">{getDeployEnv()} ({appConfig.env})</dd>
-        </div>
-        <div>
-          <dt className="text-sm text-text-muted">{orgText("leadCollection")}</dt>
-          <dd className="mt-1 font-medium">{appConfig.leadCollectionEnabled ? orgText("leadOn") : orgText("leadOff")}</dd>
-        </div>
-        <div>
-          <dt className="text-sm text-text-muted">{orgText("leadAdminUi")}</dt>
-          <dd className="mt-1 font-medium">{flags.leadAdmin ? orgText("leadAdminOn") : orgText("leadAdminOff")}</dd>
-        </div>
-        <div>
-          <dt className="text-sm text-text-muted">{orgText("providers")}</dt>
-          <dd className="mt-1 font-medium">{appConfig.kakaoProvider} / {appConfig.emailProvider}</dd>
-        </div>
+      <dl className="ui-card grid grid-cols-2 gap-px overflow-hidden bg-border !p-0">
+        {[
+          [orgText("deployEnv"), `${getDeployEnv()} (${appConfig.env})`],
+          [orgText("leadCollection"), appConfig.leadCollectionEnabled ? orgText("leadOn") : orgText("leadOff")],
+          [orgText("leadAdminUi"), flags.leadAdmin ? orgText("leadAdminOn") : orgText("leadAdminOff")],
+          [orgText("providers"), `${appConfig.kakaoProvider} / ${appConfig.emailProvider}`],
+        ].map(([label, value]) => (
+          <div key={label} className="bg-white px-5 py-3">
+            <dt className="text-xs text-text-muted">{label}</dt>
+            <dd className="mt-0.5 text-sm font-semibold">{value}</dd>
+          </div>
+        ))}
       </dl>
       {isSystemAdmin(ctx.member) ? (
         <SettingsForm
@@ -95,7 +90,7 @@ export async function AuditLogsView({
           title={orgText("auditPageEmptyTitle")}
           description={orgText("auditPageEmpty")}
           action={
-            <Link href={`${basePath}?page=${currentPage - 1}`} className="text-[17px] font-semibold text-primary">
+            <Link href={`${basePath}?page=${currentPage - 1}`} className="text-sm font-semibold text-primary">
               {orgText("pagePrev")}
             </Link>
           }
@@ -127,7 +122,7 @@ export async function AuditLogsView({
       {hasPrev || hasNext ? (
         <nav className="flex items-center justify-between gap-3 pt-2" aria-label={orgText("auditNavLabel")}>
           {hasPrev ? (
-            <Link href={`${basePath}?page=${currentPage - 1}`} className="text-[17px] font-semibold text-primary">
+            <Link href={`${basePath}?page=${currentPage - 1}`} className="text-sm font-semibold text-primary">
               {orgText("pagePrev")}
             </Link>
           ) : (
@@ -135,7 +130,7 @@ export async function AuditLogsView({
           )}
           <span className="text-sm text-text-muted">{orgText("pageStatus").replace("{page}", String(currentPage))}</span>
           {hasNext ? (
-            <Link href={`${basePath}?page=${currentPage + 1}`} className="text-[17px] font-semibold text-primary">
+            <Link href={`${basePath}?page=${currentPage + 1}`} className="text-sm font-semibold text-primary">
               {orgText("pageNext")}
             </Link>
           ) : (

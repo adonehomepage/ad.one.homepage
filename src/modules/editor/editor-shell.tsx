@@ -1,17 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
+import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { applySampleCopy, unitTypeNames, withUnitTypeOptions } from "@/modules/templates/definitions";
 import { canDuplicate, duplicateSection, pinSectionOrder } from "@/modules/sections/duplicate";
-import { Input } from "@/components/ui/input";
 import { ApiError } from "@/lib/errors";
 import { LandingPage } from "@/modules/templates/render/landing-page";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { DialogBody, DialogFooter, DialogHeader, DialogShell } from "@/components/ui/dialog-shell";
 import { useDialogFocusTrap } from "@/lib/a11y/dialog-focus";
 import { PropertyPanel } from "@/modules/editor/property-panel";
 import { CheckpointDialog } from "@/modules/editor/checkpoint-dialog";
@@ -56,7 +56,7 @@ function EditModeBanner({ settings }: { settings: Record<string, unknown> }) {
   }, []);
   if (!open) return null;
   return (
-    <div role="status" className="mb-3 flex items-start justify-between gap-3 rounded-[14px] border border-border bg-primary-soft px-4 py-3 text-sm text-text-body">
+    <div role="status" className="flex items-start justify-between gap-3 rounded-[14px] border border-border bg-primary-soft px-4 py-3 text-sm text-text-body shadow-none">
       <p>{shellText(settings, "shellEditHint", "문구와 이미지를 클릭하면 바로 고칠 수 있습니다. 섹션 순서와 노출은 왼쪽에서 조절합니다.")}</p>
       <button
         type="button"
@@ -241,13 +241,14 @@ type DraftResponse = {
   sections: PageSection[];
 };
 
-function CopyPublicLink({ slug, settings }: { slug: string; settings: Record<string, unknown> }) {
+function CopyPublicLink({ slug, settings, compact = false }: { slug: string; settings: Record<string, unknown>; compact?: boolean }) {
   const [copied, setCopied] = useState(false);
   const [failed, setFailed] = useState(false);
   return (
     <Button
       variant="ghost"
       aria-live="polite"
+      className={compact ? "h-auto border-0 bg-transparent px-0 text-xs font-medium text-text-muted hover:bg-transparent hover:text-text-primary" : undefined}
       onClick={() => {
         const url = `${window.location.origin}/${slug}`;
         void navigator.clipboard
@@ -284,103 +285,101 @@ function scrollToSection(anchorId: string) {
   node?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
+function SectionSwitch({ checked, label, title, onClick }: { checked: boolean; label: string; title?: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      title={title ?? label}
+      className={`relative h-5 w-[34px] shrink-0 rounded-full ${checked ? "bg-primary" : "bg-border"}`}
+      onPointerDown={(event) => event.stopPropagation()}
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick();
+      }}
+    >
+      <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white ${checked ? "left-4" : "left-0.5"}`} />
+    </button>
+  );
+}
+
 function SortableRow({
   section,
-  selected,
   viewed,
   settings,
   onToggle,
-  onGnb,
-  onLabel,
   onSelect,
   onDuplicate,
   onDelete,
-  onMove,
 }: {
   section: PageSection;
-  selected: boolean;
   viewed: boolean;
   settings: Record<string, unknown>;
   onToggle: () => void;
-  onGnb: (show: boolean) => void;
-  onLabel: (label: string) => void;
   onSelect: () => void;
   onDuplicate?: () => void;
   onDelete?: () => void;
-  onMove?: (direction: -1 | 1) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: section.id, disabled: section.isRequired });
+  const title = section.isOriginal ? section.title : `${section.title} ${shellText(settings, "shellCopySuffix", "복제")}`;
   return (
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`rounded-[14px] border px-3 py-2 ${selected ? "border-primary bg-white" : viewed ? "border-primary bg-primary-soft" : "border-border bg-white"} ${section.isVisible ? "" : "opacity-60"}`}
+      className={`group flex min-h-[34px] items-center gap-1.5 rounded-[14px] px-0.5 ${section.isVisible ? "" : "opacity-55"} ${section.isRequired ? "" : "cursor-grab"}`}
+      {...(section.isRequired ? {} : { ...attributes, ...listeners })}
     >
-      <div className="flex items-center gap-2">
       {section.isRequired ? (
-        <span className="w-4 text-center text-text-muted" aria-hidden>
-          ·
+        <span className="inline-flex w-[18px] shrink-0 justify-center text-text-muted" title={shellText(settings, "shellPinned", "고정")} aria-hidden>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25">
+            <path d="M12 17v5" />
+            <path d="M9 10.8 12 3l3 7.8" />
+            <path d="M5 10.8h14L12 21" />
+          </svg>
         </span>
       ) : (
-        <button type="button" className="cursor-grab text-text-muted" aria-label={shellText(settings, "shellReorder", "순서 이동")} {...attributes} {...listeners}>
-          ≡
-        </button>
+        <span className="inline-flex w-[18px] shrink-0 justify-center text-border" aria-hidden>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="9" cy="6" r="1.4" />
+            <circle cx="15" cy="6" r="1.4" />
+            <circle cx="9" cy="12" r="1.4" />
+            <circle cx="15" cy="12" r="1.4" />
+            <circle cx="9" cy="18" r="1.4" />
+            <circle cx="15" cy="18" r="1.4" />
+          </svg>
+        </span>
       )}
       <button
         type="button"
-        className="min-w-0 flex-1 truncate text-left text-sm font-medium"
-        onClick={() => {
-          onSelect();
-          scrollToSection(section.anchorId);
-        }}
+        className={`min-w-0 flex-1 truncate rounded-[14px] px-2.5 py-1.5 text-left text-xs font-semibold ${viewed ? "bg-primary text-white" : "text-text-body hover:bg-surface"}`}
+        onClick={onSelect}
       >
-        {section.isOriginal ? section.title : `${section.title} ${shellText(settings, "shellCopySuffix", "복제")}`}
+        {title}
       </button>
-      {onMove && !section.isRequired ? (
-        <>
-          <button type="button" className="text-xs text-text-muted" aria-label={shellText(settings, "shellMoveUp", "위로")} onClick={() => onMove(-1)}>
-            ↑
-          </button>
-          <button type="button" className="text-xs text-text-muted" aria-label={shellText(settings, "shellMoveDown", "아래로")} onClick={() => onMove(1)}>
-            ↓
-          </button>
-        </>
+      {onDuplicate || onDelete ? (
+        <span className="hidden shrink-0 items-center gap-1 group-hover:flex">
+          {onDuplicate ? (
+            <button type="button" className="text-[11px] font-semibold text-primary" onPointerDown={(event) => event.stopPropagation()} onClick={onDuplicate}>
+              {shellText(settings, "shellDuplicate", "복제")}
+            </button>
+          ) : null}
+          {onDelete ? (
+            <button type="button" className="text-[11px] text-text-muted" onPointerDown={(event) => event.stopPropagation()} onClick={onDelete}>
+              {shellText(settings, "editRemove", "삭제")}
+            </button>
+          ) : null}
+        </span>
       ) : null}
-      {onDuplicate ? (
-        <button type="button" className="text-xs font-semibold text-primary" onClick={onDuplicate}>
-          {shellText(settings, "shellDuplicate", "복제")}
-        </button>
-      ) : null}
-      {onDelete ? (
-        <button type="button" className="text-xs text-text-muted" onClick={onDelete}>
-          {shellText(settings, "editRemove", "삭제")}
-        </button>
-      ) : null}
-      {section.isRequired ? (
-        <span className="text-xs text-text-muted">{shellText(settings, "shellPinned", "고정")}</span>
-      ) : (
-        <button
-          type="button"
-          role="switch"
-          aria-checked={section.isVisible}
-          aria-label={shellText(settings, "shellSectionVisible", "{name} 노출").replace("{name}", section.title)}
-          className={`relative h-6 w-11 rounded-full ${section.isVisible ? "bg-primary" : "bg-border"}`}
+      {section.isRequired ? null : (
+        <SectionSwitch
+          checked={section.isVisible}
+          label={shellText(settings, "shellSectionVisible", "{name} 페이지 노출").replace("{name}", section.title)}
+          title={shellText(settings, "shellVisibleToggle", "이 구간을 페이지에 표시합니다.")}
           onClick={onToggle}
-        >
-          <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white ${section.isVisible ? "left-5" : "left-0.5"}`} />
-        </button>
+        />
       )}
-      </div>
-      <label className="mt-2 flex items-center gap-2 text-xs text-text-body">
-        <input type="checkbox" checked={section.showInGnb} onChange={(event) => onGnb(event.target.checked)} />
-        {shellText(settings, "shellMenu", "상단 메뉴")}
-      </label>
-      {section.showInGnb ? (
-        <label className="mt-2 block text-xs text-text-muted">
-          {shellText(settings, "shellMenuName", "메뉴 이름")}
-          <Input className="mt-1" value={section.gnbLabel} maxLength={20} onChange={(event) => onLabel(event.target.value)} />
-        </label>
-      ) : null}
     </div>
   );
 }
@@ -401,103 +400,107 @@ type PopupSettingsValue = {
   emptyImageLabel?: string;
 };
 
+function PopupField({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="block space-y-1.5">
+      <span className="text-xs font-medium text-text-muted">{label}</span>
+      {children}
+    </label>
+  );
+}
+
 function PopupSettings({
   popup,
   settings,
   onChange,
   onUpload,
   onPreview,
+  showToggle = true,
 }: {
   popup: PopupSettingsValue;
   settings: Record<string, unknown>;
   onChange: (popup: PopupSettingsValue) => void;
   onUpload: (file: File) => Promise<string>;
   onPreview: () => void;
+  showToggle?: boolean;
 }) {
   return (
-    <div className="mt-4 rounded-[16px] border border-border p-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold">{shellText(settings, "shellPopup", "이벤트 팝업")}</p>
-          <p className="mt-1 text-xs text-text-muted">{shellText(settings, "shellPopupIntro", "방문 시 한 번 보이는 안내")}</p>
+    <div className="space-y-4">
+      {showToggle ? (
+        <div className="flex items-center justify-between gap-3 rounded-[14px] bg-surface px-3 py-2.5">
+          <div>
+            <p className="text-sm font-semibold">{shellText(settings, "shellPopup", "이벤트 팝업")}</p>
+            <p className="mt-0.5 text-xs text-text-muted">{shellText(settings, "shellPopupIntro", "방문 시 한 번 보이는 안내")}</p>
+          </div>
+          <SectionSwitch
+            checked={popup.enabled !== false}
+            label={shellText(settings, "shellPopup", "이벤트 팝업")}
+            onClick={() => onChange({ ...popup, enabled: popup.enabled === false })}
+          />
         </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={popup.enabled !== false}
-          className={`relative h-6 w-11 rounded-full ${popup.enabled === false ? "bg-border" : "bg-primary"}`}
-          onClick={() => onChange({ ...popup, enabled: popup.enabled === false })}
-        >
-          <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white ${popup.enabled === false ? "left-0.5" : "left-5"}`} />
-        </button>
-      </div>
+      ) : null}
       {popup.imageUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={popup.imageUrl} alt="" className="mt-3 h-24 w-full rounded-[14px] object-cover" />
+        <img src={popup.imageUrl} alt="" className="h-28 w-full rounded-[14px] object-cover" />
       ) : null}
-      <label className="mt-3 flex h-12 cursor-pointer items-center justify-center rounded-[14px] border border-border text-sm font-semibold">
-        {shellText(settings, "shellPopupBanner", "배너 이미지")}
-        <input
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            if (!file) return;
-            void onUpload(file).then((imageUrl) => onChange({ ...popup, imageUrl })).catch(() => undefined);
-          }}
-        />
-      </label>
-      {popup.imageUrl ? (
-        <button type="button" className="mt-2 text-xs text-text-muted" onClick={() => onChange({ ...popup, imageUrl: "" })}>
-          {shellText(settings, "mediaBannerDelete", "배너 삭제")}
-        </button>
-      ) : null}
-      <label className="mt-3 block text-xs text-text-muted">
-        {shellText(settings, "shellPopupBannerText", "배너 문구")}
-        <input className="ui-field mt-1" value={popup.banner ?? ""} placeholder={shellText(settings, "shellPopupBannerPh", "방문 고객 안내")} onChange={(event) => onChange({ ...popup, banner: event.target.value })} />
-      </label>
-      <label className="mt-2 block text-xs text-text-muted">
-        {shellText(settings, "shellPopupTitleField", "제목")}
-        <input className="ui-field mt-1" value={popup.title ?? ""} placeholder={shellText(settings, "shellPopupTitlePh", "관심고객으로 등록해 주세요")} onChange={(event) => onChange({ ...popup, title: event.target.value })} />
-      </label>
-      <label className="mt-2 block text-xs text-text-muted">
-        {shellText(settings, "shellPopupBodyField", "본문")}
-        <textarea className="ui-field mt-1 min-h-24 py-3" value={popup.body ?? ""} placeholder={shellText(settings, "shellPopupBodyPh", "상담 안내를 받으려면 이름과 연락처를 남겨 주세요.")} onChange={(event) => onChange({ ...popup, body: event.target.value })} />
-      </label>
-      <label className="mt-2 block text-xs text-text-muted">
-        {shellText(settings, "shellPopupPerks", "혜택")}
-        <textarea className="ui-field mt-1 min-h-24 py-3" value={(popup.perks ?? []).join("\n")} placeholder={shellText(settings, "shellPopupPerksPh", "한 줄에 하나씩\n청약 일정 안내")} onChange={(event) => onChange({ ...popup, perks: event.target.value.split("\n") })} />
-      </label>
-      <label className="mt-2 block text-xs text-text-muted">
-        {shellText(settings, "shellPopupDisclaimer", "안내 문장")}
-        <input className="ui-field mt-1" value={popup.disclaimer ?? ""} placeholder={shellText(settings, "shellPopupDisclaimerPh", "관심고객 등록은 청약 접수가 아닙니다.")} onChange={(event) => onChange({ ...popup, disclaimer: event.target.value })} />
-      </label>
-      <label className="mt-2 block text-xs text-text-muted">
-        {shellText(settings, "shellPopupCta", "버튼 문구")}
-        <input className="ui-field mt-1" value={popup.ctaLabel ?? ""} placeholder={shellText(settings, "shellPopupCtaPh", "관심고객 등록")} onChange={(event) => onChange({ ...popup, ctaLabel: event.target.value })} />
-      </label>
-      <label className="mt-2 block text-xs text-text-muted">
-        {shellText(settings, "shellPopupPhone", "팝업 전화")}
-        <input className="ui-field mt-1" value={popup.phone ?? ""} placeholder={shellText(settings, "shellPopupPhonePh", "비우면 대표 전화")} onChange={(event) => onChange({ ...popup, phone: event.target.value })} />
-      </label>
-      <label className="mt-2 block text-xs text-text-muted">
-        {shellText(settings, "shellPopupPhonePrefix", "전화 앞 문구")}
-        <input className="ui-field mt-1" value={popup.phonePrefix ?? ""} placeholder={shellText(settings, "shellPopupPhonePrefixPh", "바로 상담")} onChange={(event) => onChange({ ...popup, phonePrefix: event.target.value })} />
-      </label>
-      <label className="mt-2 block text-xs text-text-muted">
-        {shellText(settings, "shellPopupCloseField", "닫기")}
-        <input className="ui-field mt-1" value={popup.closeLabel ?? ""} placeholder={shellText(settings, "shellPopupClosePh", "닫기")} onChange={(event) => onChange({ ...popup, closeLabel: event.target.value })} />
-      </label>
-      <label className="mt-2 block text-xs text-text-muted">
-        {shellText(settings, "shellPopupEmpty", "배너가 없을 때")}
-        <input className="ui-field mt-1" value={popup.emptyImageLabel ?? ""} placeholder={shellText(settings, "shellPopupEmptyPh", "배너 이미지")} onChange={(event) => onChange({ ...popup, emptyImageLabel: event.target.value })} />
-      </label>
-      <label className="mt-2 block text-xs text-text-muted">
-        {shellText(settings, "shellPopupHideToday", "오늘 하루 보지 않기")}
-        <input className="ui-field mt-1" value={popup.hideTodayLabel ?? ""} placeholder={shellText(settings, "shellPopupHideTodayPh", "오늘 하루 보지 않기")} onChange={(event) => onChange({ ...popup, hideTodayLabel: event.target.value })} />
-      </label>
-      <Button type="button" variant="soft" className="mt-3 w-full" onClick={onPreview}>
+      <div className="flex gap-2">
+        <label className="flex h-11 flex-1 cursor-pointer items-center justify-center rounded-[14px] border border-border bg-white text-sm font-semibold hover:bg-surface">
+          {shellText(settings, "shellPopupBanner", "배너 이미지")}
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (!file) return;
+              void onUpload(file).then((imageUrl) => onChange({ ...popup, imageUrl })).catch(() => undefined);
+            }}
+          />
+        </label>
+        {popup.imageUrl ? (
+          <button type="button" className="h-11 rounded-[14px] border border-border px-3 text-xs font-semibold text-text-muted hover:bg-surface" onClick={() => onChange({ ...popup, imageUrl: "" })}>
+            {shellText(settings, "mediaBannerDelete", "배너 삭제")}
+          </button>
+        ) : null}
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <PopupField label={shellText(settings, "shellPopupBannerText", "배너 문구")}>
+          <input className="ui-field h-11 min-h-11 text-sm" value={popup.banner ?? ""} placeholder={shellText(settings, "shellPopupBannerPh", "방문 고객 안내")} onChange={(event) => onChange({ ...popup, banner: event.target.value })} />
+        </PopupField>
+        <PopupField label={shellText(settings, "shellPopupCta", "버튼 문구")}>
+          <input className="ui-field h-11 min-h-11 text-sm" value={popup.ctaLabel ?? ""} placeholder={shellText(settings, "shellPopupCtaPh", "관심고객 등록")} onChange={(event) => onChange({ ...popup, ctaLabel: event.target.value })} />
+        </PopupField>
+      </div>
+      <PopupField label={shellText(settings, "shellPopupTitleField", "제목")}>
+        <input className="ui-field h-11 min-h-11 text-sm" value={popup.title ?? ""} placeholder={shellText(settings, "shellPopupTitlePh", "관심고객으로 등록해 주세요")} onChange={(event) => onChange({ ...popup, title: event.target.value })} />
+      </PopupField>
+      <PopupField label={shellText(settings, "shellPopupBodyField", "본문")}>
+        <textarea className="ui-field min-h-[4.5rem] py-2.5 text-sm" value={popup.body ?? ""} placeholder={shellText(settings, "shellPopupBodyPh", "상담 안내를 받으려면 이름과 연락처를 남겨 주세요.")} onChange={(event) => onChange({ ...popup, body: event.target.value })} />
+      </PopupField>
+      <PopupField label={shellText(settings, "shellPopupPerks", "혜택")}>
+        <textarea className="ui-field min-h-[4.5rem] py-2.5 text-sm" value={(popup.perks ?? []).join("\n")} placeholder={shellText(settings, "shellPopupPerksPh", "한 줄에 하나씩\n청약 일정 안내")} onChange={(event) => onChange({ ...popup, perks: event.target.value.split("\n") })} />
+      </PopupField>
+      <PopupField label={shellText(settings, "shellPopupDisclaimer", "안내 문장")}>
+        <input className="ui-field h-11 min-h-11 text-sm" value={popup.disclaimer ?? ""} placeholder={shellText(settings, "shellPopupDisclaimerPh", "관심고객 등록은 청약 접수가 아닙니다.")} onChange={(event) => onChange({ ...popup, disclaimer: event.target.value })} />
+      </PopupField>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <PopupField label={shellText(settings, "shellPopupPhone", "팝업 전화")}>
+          <input className="ui-field h-11 min-h-11 text-sm" value={popup.phone ?? ""} placeholder={shellText(settings, "shellPopupPhonePh", "비우면 대표 전화")} onChange={(event) => onChange({ ...popup, phone: event.target.value })} />
+        </PopupField>
+        <PopupField label={shellText(settings, "shellPopupPhonePrefix", "전화 앞 문구")}>
+          <input className="ui-field h-11 min-h-11 text-sm" value={popup.phonePrefix ?? ""} placeholder={shellText(settings, "shellPopupPhonePrefixPh", "바로 상담")} onChange={(event) => onChange({ ...popup, phonePrefix: event.target.value })} />
+        </PopupField>
+        <PopupField label={shellText(settings, "shellPopupCloseField", "닫기")}>
+          <input className="ui-field h-11 min-h-11 text-sm" value={popup.closeLabel ?? ""} placeholder={shellText(settings, "shellPopupClosePh", "닫기")} onChange={(event) => onChange({ ...popup, closeLabel: event.target.value })} />
+        </PopupField>
+        <PopupField label={shellText(settings, "shellPopupEmpty", "배너가 없을 때")}>
+          <input className="ui-field h-11 min-h-11 text-sm" value={popup.emptyImageLabel ?? ""} placeholder={shellText(settings, "shellPopupEmptyPh", "배너 이미지")} onChange={(event) => onChange({ ...popup, emptyImageLabel: event.target.value })} />
+        </PopupField>
+        <PopupField label={shellText(settings, "shellPopupHideToday", "오늘 하루 보지 않기")}>
+          <input className="ui-field h-11 min-h-11 text-sm" value={popup.hideTodayLabel ?? ""} placeholder={shellText(settings, "shellPopupHideTodayPh", "오늘 하루 보지 않기")} onChange={(event) => onChange({ ...popup, hideTodayLabel: event.target.value })} />
+        </PopupField>
+      </div>
+      <Button type="button" variant="soft" className="h-11 w-full text-[15px]" onClick={onPreview}>
         {shellText(settings, "shellPopupPreview", "팝업 미리보기")}
       </Button>
     </div>
@@ -518,6 +521,7 @@ export function EditorShell({ projectId }: { projectId: string }) {
   const [publishDone, setPublishDone] = useState(false);
   const [changeSummary, setChangeSummary] = useState("");
   const [listOpen, setListOpen] = useState(true);
+  const [popupFormOpen, setPopupFormOpen] = useState(false);
   const [viewedAnchor, setViewedAnchor] = useState("");
   const [toast, setToast] = useState("");
   const [error, setError] = useState("");
@@ -532,13 +536,20 @@ export function EditorShell({ projectId }: { projectId: string }) {
   const statusRef = useRef(status);
   const helpPanelRef = useRef<HTMLDivElement>(null);
   const publishPanelRef = useRef<HTMLDivElement>(null);
+  const popupPanelRef = useRef<HTMLDivElement>(null);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
   statusRef.current = status;
+  const dragSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
   useDialogFocusTrap({
     open: helpOpen,
     panelRef: helpPanelRef,
     onEscape: () => setHelpOpen(false),
+  });
+  useDialogFocusTrap({
+    open: popupFormOpen,
+    panelRef: popupPanelRef,
+    onEscape: () => setPopupFormOpen(false),
   });
   useDialogFocusTrap({
     open: publishOpen,
@@ -998,125 +1009,114 @@ export function EditorShell({ projectId }: { projectId: string }) {
   const settingsSection = data.sections.find((section) => section.id === selectedId) ?? data.sections.find((section) => section.sectionType === "legal") ?? data.sections[0];
   const labels = data.draft.globalSettings;
 
+  const toolClass = "inline-flex h-[34px] items-center gap-1.5 rounded-[14px] px-3 text-xs font-bold text-white/85 hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40";
+  const popupSettings = (data.draft.globalSettings.popup ?? {}) as PopupSettingsValue;
+
   return (
     <div className="flex h-screen flex-col bg-surface">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-white/75 px-4 py-3 backdrop-blur-md">
-        <div className="flex min-w-0 items-center gap-3">
-          <Link href="/admin/projects/new" className="text-sm font-medium text-text-body">
-            {shellText(labels, "shellTemplates", "템플릿 선택")}
+      <header className="grid h-[60px] shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 border-b border-white/10 bg-text-primary px-5 text-white" aria-label="랜딩페이지 편집기">
+        <div className="flex min-w-0 items-center gap-3.5">
+          <Link
+            href="/admin/projects/new"
+            className="inline-flex h-[38px] shrink-0 items-center gap-2 rounded-full border border-white/15 bg-white/5 pl-2 pr-3.5 text-xs font-bold text-white/90 hover:bg-white/10"
+            onClick={(event) => {
+              if (status !== "dirty") return;
+              const ok = window.confirm("템플릿 선택 화면으로 돌아갈까요?\n\n저장하지 않은 편집 내용은 유지되지 않을 수 있습니다.");
+              if (!ok) event.preventDefault();
+            }}
+          >
+            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/10" aria-hidden>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25">
+                <path d="M15 6 9 12l6 6" />
+              </svg>
+            </span>
+            {shellText(labels, "shellExitTemplates", "템플릿 다시 설정")}
           </Link>
-          <Link href={`/admin/projects/${projectId}`} className="text-sm font-medium text-text-body">
-            {shellText(labels, "shellProject", "현장")}
-          </Link>
-          <Link href={`/admin/projects/${projectId}/versions`} className="text-sm font-medium text-text-body">
-            {shellText(labels, "shellVersions", "버전 기록")}
-          </Link>
-          <Link href={`/admin/projects/${projectId}/analytics`} className="text-sm font-medium text-text-body">
-            {shellText(labels, "shellAnalytics", "통계")}
-          </Link>
-          <span className="text-sm font-semibold tracking-wide text-primary">ADONEBRIDGE</span>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">{editing ? shellText(labels, "shellEditing", "랜딩페이지 제작") : shellText(labels, "shellPreviewTitle", "미리보기")}</p>
-            <p className="truncate text-xs text-text-muted">
-              {snapshot.projectName} ·{" "}
-              <span role="status" aria-live="polite" aria-atomic="true">
-                {showStatus(labels, status)}
-              </span>
-            </p>
+          <span className="h-7 w-px shrink-0 bg-white/15" aria-hidden />
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="shrink-0 text-[10px] font-extrabold tracking-[0.18em] text-primary">ADONEBRIDGE</span>
+            <span className="shrink-0 text-[15px] font-extrabold tracking-tight">
+              {editing ? shellText(labels, "shellEditing", "랜딩페이지 제작") : shellText(labels, "shellPreviewTitle", "미리보기")}
+            </span>
+            <span className="truncate text-[11px] font-medium text-white/50" role="status" aria-live="polite">
+              {showStatus(labels, status)}
+            </span>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="ghost" disabled={!canUndo} title="Ctrl+Z" onClick={undo}>
-            {shellText(labels, "shellUndo", "실행 취소")}
-          </Button>
-          <Button variant="ghost" disabled={!canRedo} title="Ctrl+Shift+Z" onClick={redo}>
-            {shellText(labels, "shellRedo", "다시 실행")}
-          </Button>
-          <Button variant="ghost" onClick={() => setHelpOpen(true)}>
-            {shellText(labels, "shellShortcuts", "단축키")}
-          </Button>
-          <Button variant={editing ? "soft" : "ghost"} onClick={() => { setEditing(true); setPopupOpen(false); }}>
-            {shellText(labels, "shellKeepEditing", "편집 계속")}
-          </Button>
-          <Button variant={!editing ? "soft" : "ghost"} onClick={() => setEditing(false)}>
-            {shellText(labels, "shellPreview", "미리보기")}
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={() => {
-              void (async () => {
-                try {
-                  const res = await fetch(`/api/projects/${projectId}/preview-link`, { method: "POST" });
-                  const json = await res.json().catch(() => ({}));
-                  if (!res.ok || !json.url) {
-                    setError(json.message ?? orgText("previewFail"));
-                    return;
-                  }
-                  window.open(String(json.url), "_blank", "noopener,noreferrer");
-                } catch {
-                  setError(orgText("previewFail"));
-                }
-              })();
-            }}
-          >
-            {orgText("previewOpenTab")}
-          </Button>
-          {!editing ? (
-            <Button variant="ghost" onClick={() => setPopupOpen(true)}>
-              {shellText(labels, "shellPopup", "이벤트 팝업")}
-            </Button>
-          ) : null}
-          <Button variant={viewport === "desktop" ? "soft" : "ghost"} onClick={() => setViewport("desktop")}>
-            {shellText(labels, "shellDesktop", "PC")}
-          </Button>
-          <Button variant={viewport === "tablet" ? "soft" : "ghost"} onClick={() => setViewport("tablet")}>
-            {shellText(labels, "shellTablet", "태블릿")}
-          </Button>
-          <Button variant={viewport === "mobile" ? "soft" : "ghost"} onClick={() => setViewport("mobile")}>
-            {shellText(labels, "shellMobile", "모바일")}
-          </Button>
-          <Button variant={viewport === "split" ? "soft" : "ghost"} onClick={() => setViewport("split")}>
-            {shellText(labels, "shellSplit", "나눠 보기")}
-          </Button>
-          <Button variant={listOpen ? "soft" : "ghost"} onClick={() => setListOpen((open) => !open)}>
-            {listOpen ? shellText(labels, "shellCollapse", "섹션 접기") : shellText(labels, "shellSections", "섹션")}
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={() => {
-              const legal = data.sections.find((section) => section.sectionType === "legal");
-              if (legal) setSelectedId(legal.id);
-              setSettingsOpen(true);
-            }}
-          >
-            {shellText(labels, "shellPageSettings", "페이지 설정")}
-          </Button>
-          {status === "save_failed" ? (
-            <Button variant="soft" type="button" onClick={() => void flushSave()}>
-              {shellText(labels, "shellRetrySave", "다시 저장")}
-            </Button>
-          ) : null}
-          <Button variant="ghost" onClick={() => setCheckpointOpen(true)}>
-            {shellText(labels, "shellCheckpoint", "임시 저장")}
-          </Button>
-          <Button data-testid="publish-button" onClick={() => { setPublishDone(false); setPublishOpen(true); }}>
-            {data.project.status === "PUBLISHED" ? shellText(labels, "shellRepublish", "재발행") : shellText(labels, "shellPublish", "발행하기")}
-          </Button>
-          {data.project.publishedAt ? (
-            <>
-              <a
-                href={`/${snapshot.publicSlug}`}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex h-12 items-center rounded-[14px] border border-border bg-white px-5 text-[17px] font-semibold"
+        {!editing ? (
+          <nav className="inline-flex items-center gap-0.5 rounded-[14px] border border-white/10 bg-white/5 p-1" aria-label="화면 크기">
+            {([
+              ["desktop", shellText(labels, "shellDesktop", "PC")],
+              ["tablet", shellText(labels, "shellTablet", "태블릿")],
+              ["mobile", shellText(labels, "shellMobile", "모바일")],
+            ] as const).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={viewport === id}
+                className={`inline-flex h-[34px] items-center rounded-[14px] px-2.5 text-[11px] font-bold ${viewport === id ? "bg-white/15 text-white" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
+                onClick={() => setViewport(id)}
               >
-                {shellText(labels, "shellLive", "발행 페이지")}
-              </a>
-              <CopyPublicLink slug={snapshot.publicSlug} settings={labels} />
-            </>
+                {label}
+              </button>
+            ))}
+          </nav>
+        ) : (
+          <span />
+        )}
+        <div className="flex items-center justify-end gap-2.5">
+          {!editing ? (
+            <button
+              type="button"
+              className={`${toolClass} ${popupSettings.enabled === false ? "opacity-45" : ""}`}
+              disabled={popupSettings.enabled === false}
+              onClick={() => setPopupOpen(true)}
+            >
+              {shellText(labels, "shellPopup", "이벤트 팝업")}
+            </button>
           ) : null}
+          <nav className="inline-flex items-center gap-0.5 rounded-[14px] border border-white/10 bg-white/5 p-1" aria-label="편집 도구">
+            {editing ? (
+              <>
+                <button type="button" className={toolClass} disabled={!canUndo} title="Ctrl+Z" onClick={undo}>
+                  {shellText(labels, "shellUndo", "실행 취소")}
+                </button>
+                <button type="button" className={`${toolClass} px-2`} disabled={!canRedo} title="Ctrl+Shift+Z" aria-label={shellText(labels, "shellRedo", "다시 실행")} onClick={redo}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" aria-hidden>
+                    <path d="M21 7v6h-6" />
+                    <path d="M3 17a9 9 0 0 1 15-6.7L21 13" />
+                  </svg>
+                </button>
+                <button type="button" className={toolClass} onClick={() => setCheckpointOpen(true)}>
+                  {shellText(labels, "shellCheckpoint", "임시 저장")}
+                </button>
+              </>
+            ) : null}
+            <button
+              type="button"
+              className={toolClass}
+              onClick={() => {
+                setEditing((value) => !value);
+                setPopupOpen(false);
+                if (!editing) setViewport("desktop");
+              }}
+            >
+              {editing ? shellText(labels, "shellPreview", "미리보기") : shellText(labels, "shellKeepEditing", "편집 계속")}
+            </button>
+          </nav>
+          <button
+            type="button"
+            data-testid="publish-button"
+            className="inline-flex h-[38px] items-center rounded-[14px] bg-primary px-4 text-[13px] font-extrabold text-white hover:bg-primary-hover"
+            onClick={() => {
+              setPublishDone(false);
+              setPublishOpen(true);
+            }}
+          >
+            {data.project.status === "PUBLISHED" ? shellText(labels, "shellRepublish", "재발행") : shellText(labels, "shellPublish", "발행하기")}
+          </button>
         </div>
-      </div>
+      </header>
       {error ? (
         <p className="bg-[#fdeeee] px-4 py-2 text-sm text-danger" role="alert" aria-live="assertive">
           {error}
@@ -1131,21 +1131,26 @@ export function EditorShell({ projectId }: { projectId: string }) {
           {toast}
         </p>
       ) : null}
-      {listOpen ? (
-        <button type="button" className="fixed inset-0 z-20 bg-text-primary/40 lg:hidden" aria-label={shellText(labels, "shellListClose", "섹션 목록 닫기")} onClick={() => setListOpen(false)} />
+      {editing && listOpen ? (
+        <button type="button" className="fixed inset-0 top-[60px] z-20 bg-text-primary/40 lg:hidden" aria-label={shellText(labels, "shellListClose", "섹션 목록 닫기")} onClick={() => setListOpen(false)} />
       ) : null}
-      <div className={`grid min-h-0 flex-1 ${listOpen ? "lg:grid-cols-[280px_1fr]" : "lg:grid-cols-[4.5rem_1fr]"}`}>
-        <aside className={`${listOpen ? "fixed inset-y-0 left-0 z-30 w-[min(100%,20rem)] lg:static lg:z-auto lg:w-auto" : "hidden lg:block"} min-h-0 overflow-y-auto border-r border-border bg-white p-4`}>
+      <div className={`grid min-h-0 flex-1 ${editing ? (listOpen ? "lg:grid-cols-[280px_1fr]" : "lg:grid-cols-[44px_1fr]") : "grid-cols-1"}`}>
+        {editing ? (
+        <aside className={`${listOpen ? "fixed bottom-0 left-0 top-[60px] z-30 flex w-[min(100%,280px)] lg:static lg:z-auto lg:w-auto" : "hidden lg:flex"} min-h-0 flex-col border-r border-border bg-surface`}>
+          <div className="flex h-12 shrink-0 items-center justify-end border-b border-border px-3">
+            <button
+              type="button"
+              className="inline-flex h-[30px] w-[30px] items-center justify-center rounded-[14px] text-text-muted hover:bg-white hover:text-text-body"
+              aria-label={listOpen ? shellText(labels, "shellListClose", "섹션 목록 닫기") : shellText(labels, "shellListOpen", "섹션 목록 펼치기")}
+              onClick={() => setListOpen((open) => !open)}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
+                {listOpen ? <path d="m11 17-5-5 5-5M18 17l-5-5 5-5" /> : <path d="m13 17 5-5-5-5M6 17l5-5-5-5" />}
+              </svg>
+            </button>
+          </div>
           {listOpen ? (
-          <>
-          <button
-            type="button"
-            className="mb-4 w-full rounded-[14px] border border-border bg-primary-soft px-3 py-3 text-left"
-            onClick={() => setSampleConfirmOpen(true)}
-          >
-            <span className="text-sm font-semibold text-primary-soft-foreground">{shellText(labels, "shellSample", "샘플 센터")}</span>
-            <span className="mt-1 block text-xs text-text-body">{shellText(labels, "shellSampleBody", "비어 있는 안내 글을 샘플 문장으로 채웁니다.")}</span>
-          </button>
+          <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-3 py-3.5">
           <ConfirmDialog
             open={sampleConfirmOpen}
             title={shellText(labels, "shellSample", "샘플 센터")}
@@ -1180,33 +1185,29 @@ export function EditorShell({ projectId }: { projectId: string }) {
               persist(data.sections.filter((item) => item.id !== id).map((item, index) => ({ ...item, sortOrder: index })));
             }}
           />
-          <p className="text-sm font-semibold">{shellText(labels, "shellSections", "섹션")}</p>
-          <p className="mb-3 mt-1 text-xs text-text-muted">{shellText(labels, "shellSectionHelp", "드래그 또는 ↑↓로 순서를 바꿉니다. 히어로, 관심고객 등록, 법적 고지는 자리가 고정됩니다. 복제는 원본당 3개까지입니다. Ctrl+S 임시 저장, Ctrl+Z 되돌리기, P 미리보기.")}</p>
-          <DndContext collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+          <div className="rounded-[16px] border border-border bg-white p-3">
+          <h2 className="text-[13px] font-semibold">{shellText(labels, "shellSections", "섹션")}</h2>
+          <p className="mt-1 text-[11px] leading-snug text-text-muted">{shellText(labels, "shellSectionHint", "드래그하여 순서를 바꿉니다.")}</p>
+          <DndContext sensors={dragSensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
             <SortableContext items={data.sections.map((section) => section.id)} strategy={verticalListSortingStrategy}>
-              <div className="space-y-2">
+              <div className="mt-2.5 flex flex-col gap-0.5">
                 {data.sections.map((section) => (
                   <SortableRow
                     key={section.id}
                     section={section}
                     settings={labels}
-                    selected={selectedId === section.id}
                     viewed={section.anchorId === viewedAnchor}
                     onSelect={() => {
                       setSelectedId(section.id);
-                      setSettingsOpen(true);
+                      setSettingsOpen(false);
+                      scrollToSection(section.anchorId);
                       if (!window.matchMedia("(min-width: 1024px)").matches) setListOpen(false);
-                    }}
-                    onGnb={(show) => {
-                      setSelectedId(section.id);
-                      persist(data.sections.map((item) => (item.id === section.id ? { ...item, showInGnb: show } : item)));
-                    }}
-                    onLabel={(label) => {
-                      persist(data.sections.map((item) => (item.id === section.id ? { ...item, gnbLabel: label } : item)));
                     }}
                     onToggle={() => {
                       persist(
-                        data.sections.map((item) => (item.id === section.id ? { ...item, isVisible: !item.isVisible } : item)),
+                        data.sections.map((item) =>
+                          item.id === section.id ? { ...item, isVisible: !item.isVisible, showInGnb: !item.isVisible } : item,
+                        ),
                       );
                     }}
                     onDuplicate={
@@ -1222,71 +1223,96 @@ export function EditorShell({ projectId }: { projectId: string }) {
                         : undefined
                     }
                     onDelete={section.isOriginal ? undefined : () => setDeleteSectionId(section.id)}
-                    onMove={
-                      section.isRequired
-                        ? undefined
-                        : (direction) => {
-                            const index = data.sections.findIndex((item) => item.id === section.id);
-                            const target = index + direction;
-                            if (index < 0 || target < 0 || target >= data.sections.length) return;
-                            if (data.sections[target]?.isRequired) return;
-                            const next = [...data.sections];
-                            const [row] = next.splice(index, 1);
-                            next.splice(target, 0, row!);
-                            persist(pinSectionOrder(next));
-                          }
-                    }
                   />
                 ))}
               </div>
             </SortableContext>
           </DndContext>
-          <PublishChecklist snapshot={snapshot} onOpen={openChecklistTarget} />
-          <PopupSettings
-            popup={(data.draft.globalSettings.popup ?? {}) as PopupSettingsValue}
-            settings={labels}
-            onChange={(popup) => persist(data.sections, { globalSettings: { ...data.draft.globalSettings, popup } })}
-            onUpload={(file) => uploadProjectFile(projectId, file)}
-            onPreview={() => setPopupOpen(true)}
-          />
-          </>
-          ) : (
-            <button type="button" className="flex h-12 w-full items-center justify-center rounded-[14px] border border-border text-sm font-semibold" aria-label={shellText(labels, "shellListOpen", "섹션 목록 펼치기")} onClick={() => setListOpen(true)}>
-              {shellText(labels, "shellSections", "섹션")}
-            </button>
-          )}
-        </aside>
-        <div className="flex min-h-0 flex-col overflow-hidden p-4">
-          {editing ? <EditModeBanner settings={labels} /> : <PreviewModeBanner hiddenCount={data.sections.filter((section) => !section.isVisible).length} settings={labels} />}
-          {viewport === "split" ? (
-            <div className="flex h-full min-h-0 flex-1 gap-3">
-              <div className="flex min-w-0 flex-1 flex-col">
-                <p className="mb-2 text-xs font-semibold text-text-muted">{shellText(labels, "shellDesktop", "PC")}</p>
-                <div data-preview-scroll className="min-h-0 flex-1 overflow-auto rounded-[16px] border border-border bg-white">
-                  <LandingPage snapshot={snapshot} mode="preview" variant="desktop" edit={edit} highlightId={selectedId} showPopup={popupOpen} onClosePopup={() => setPopupOpen(false)} onActiveAnchor={setViewedAnchor} />
-                </div>
-              </div>
-              <div className="flex w-[390px] shrink-0 flex-col">
-                <p className="mb-2 text-xs font-semibold text-text-muted">{shellText(labels, "shellMobile", "모바일")}</p>
-                <div data-preview-scroll className="min-h-0 flex-1 overflow-auto rounded-[16px] border border-border bg-white">
-                  <LandingPage snapshot={snapshot} mode="preview" variant="mobile" edit={edit} highlightId={selectedId} />
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div data-preview-scroll className={`relative mx-auto h-full min-h-0 flex-1 overflow-auto rounded-[16px] border border-border bg-white ${width}`}>
-              <LandingPage
-                snapshot={snapshot}
-                mode="preview"
-                variant={viewport}
-                edit={edit}
-                highlightId={selectedId}
-                showPopup={popupOpen}
-                onClosePopup={() => setPopupOpen(false)}
-                onActiveAnchor={setViewedAnchor}
+          </div>
+          <div className="rounded-[16px] border border-border bg-white p-3">
+            <div className="flex items-start justify-between gap-2">
+              <button type="button" className="min-w-0 flex-1 rounded-[14px] text-left hover:bg-primary-soft" onClick={() => setPopupFormOpen(true)}>
+                <span className="flex items-center gap-1.5 text-[13px] font-semibold">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                    <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" />
+                  </svg>
+                  {shellText(labels, "shellPopup", "이벤트 팝업")}
+                </span>
+                <span className="mt-1 block text-[11px] leading-snug text-text-muted">{shellText(labels, "shellPopupIntro", "방문 시 한 번 보이는 안내")}</span>
+              </button>
+              <SectionSwitch
+                checked={popupSettings.enabled !== false}
+                label={shellText(labels, "shellPopup", "이벤트 팝업")}
+                onClick={() => persist(data.sections, { globalSettings: { ...data.draft.globalSettings, popup: { ...popupSettings, enabled: popupSettings.enabled === false } } })}
               />
             </div>
-          )}
+          </div>
+          <details className="px-1 text-xs font-medium text-text-muted">
+            <summary className="cursor-pointer">{shellText(labels, "shellMore", "더보기")}</summary>
+          <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+            <button
+              type="button"
+              className="hover:text-text-primary"
+              onClick={() => {
+                const legal = data.sections.find((section) => section.sectionType === "legal");
+                if (legal) setSelectedId(legal.id);
+                setSettingsOpen(true);
+              }}
+            >
+              {shellText(labels, "shellPageSettings", "페이지 설정")}
+            </button>
+            <button type="button" className="hover:text-text-primary" onClick={() => setHelpOpen(true)}>
+              {shellText(labels, "shellShortcuts", "단축키")}
+            </button>
+            <button type="button" className="hover:text-text-primary" onClick={() => setSampleConfirmOpen(true)}>
+              {shellText(labels, "shellSample", "샘플 센터")}
+            </button>
+            <Link href={`/admin/projects/${projectId}`} className="hover:text-text-primary">
+              {shellText(labels, "shellProject", "현장")}
+            </Link>
+            <Link href={`/admin/projects/${projectId}/versions`} className="hover:text-text-primary">
+              {shellText(labels, "shellVersions", "버전 기록")}
+            </Link>
+            {status === "save_failed" ? (
+              <button type="button" className="font-semibold text-danger" onClick={() => void flushSave()}>
+                {shellText(labels, "shellRetrySave", "다시 저장")}
+              </button>
+            ) : null}
+            {data.project.publishedAt ? (
+              <>
+                <a href={`/${snapshot.publicSlug}`} target="_blank" rel="noreferrer" className="hover:text-text-primary">
+                  {shellText(labels, "shellLive", "발행 페이지")}
+                </a>
+                <CopyPublicLink compact slug={snapshot.publicSlug} settings={labels} />
+              </>
+            ) : null}
+          </div>
+          </details>
+          </div>
+          ) : null}
+        </aside>
+        ) : null}
+        <div className={`flex min-h-0 flex-col overflow-hidden ${viewport === "desktop" || viewport === "split" ? "bg-white" : "bg-surface p-4"}`}>
+          {editing ? null : <PreviewModeBanner hiddenCount={data.sections.filter((section) => !section.isVisible).length} settings={labels} />}
+          <div data-preview-scroll className={`relative mx-auto h-full min-h-0 flex-1 overflow-auto bg-white ${viewport === "desktop" || viewport === "split" ? "w-full" : `rounded-[16px] border border-border ${width}`}`}>
+            <LandingPage
+              snapshot={snapshot}
+              mode="preview"
+              variant={viewport === "split" ? "desktop" : viewport}
+              edit={edit}
+              highlightId={selectedId}
+              showPopup={popupOpen}
+              onClosePopup={() => setPopupOpen(false)}
+              onActiveAnchor={setViewedAnchor}
+            />
+            {editing ? (
+              <div className="pointer-events-none sticky bottom-4 z-10 flex justify-center px-4">
+                <div className="pointer-events-auto max-w-xl">
+                  <EditModeBanner settings={labels} />
+                </div>
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
       {settingsOpen && settingsSection ? (
@@ -1312,18 +1338,29 @@ export function EditorShell({ projectId }: { projectId: string }) {
           />
         </div>
       ) : null}
+      {popupFormOpen ? (
+        <DialogShell titleId="popup-settings-title" panelRef={popupPanelRef} onClose={() => setPopupFormOpen(false)} closeLabel={shellText(labels, "shellClose", "닫기")} size="lg">
+          <DialogHeader titleId="popup-settings-title" title={shellText(labels, "shellPopup", "이벤트 팝업")} onClose={() => setPopupFormOpen(false)} closeLabel={shellText(labels, "shellClose", "닫기")} />
+          <DialogBody>
+            <PopupSettings
+              popup={popupSettings}
+              settings={labels}
+              showToggle={false}
+              onChange={(popup) => persist(data.sections, { globalSettings: { ...data.draft.globalSettings, popup } })}
+              onUpload={(file) => uploadProjectFile(projectId, file)}
+              onPreview={() => {
+                setPopupFormOpen(false);
+                setPopupOpen(true);
+              }}
+            />
+          </DialogBody>
+        </DialogShell>
+      ) : null}
       {helpOpen ? (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-text-primary/40 p-4">
-          <button type="button" className="absolute inset-0 cursor-default" aria-label={shellText(labels, "shellClose", "닫기")} onClick={() => setHelpOpen(false)} />
-          <div
-            ref={helpPanelRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="shortcut-title"
-            className="relative z-10 w-full max-w-md rounded-[16px] border border-border bg-white p-6"
-          >
-            <h2 id="shortcut-title" className="text-xl font-bold">{shellText(labels, "shellShortcuts", "단축키")}</h2>
-            <ul className="mt-4 space-y-2 text-sm text-text-body">
+        <DialogShell titleId="shortcut-title" panelRef={helpPanelRef} onClose={() => setHelpOpen(false)} closeLabel={shellText(labels, "shellClose", "닫기")} size="sm">
+          <DialogHeader titleId="shortcut-title" title={shellText(labels, "shellShortcuts", "단축키")} onClose={() => setHelpOpen(false)} closeLabel={shellText(labels, "shellClose", "닫기")} />
+          <DialogBody>
+            <ul className="space-y-2 text-sm text-text-body">
               <li>{shellText(labels, "shellKeyUndo", "Ctrl+Z 실행 취소")}</li>
               <li>{shellText(labels, "shellKeyRedo", "Ctrl+Shift+Z 또는 Ctrl+Y 다시 실행")}</li>
               <li>{shellText(labels, "shellKeySave", "Ctrl+S 임시 저장")}</li>
@@ -1332,9 +1369,11 @@ export function EditorShell({ projectId }: { projectId: string }) {
               <li>{shellText(labels, "shellKeyEsc", "Esc 열린 창과 좁은 화면의 섹션 목록을 닫기")}</li>
             </ul>
             <p className="mt-3 text-xs text-text-muted">{shellText(labels, "shellKeyNote", "글을 입력하는 중에는 P와 ?가 동작하지 않습니다. Ctrl+S는 입력 중에도 임시 저장을 엽니다.")}</p>
-            <Button className="mt-4" onClick={() => setHelpOpen(false)}>{shellText(labels, "shellClose", "닫기")}</Button>
-          </div>
-        </div>
+          </DialogBody>
+          <DialogFooter>
+            <Button className="h-11 px-4 text-[15px]" onClick={() => setHelpOpen(false)}>{shellText(labels, "shellClose", "닫기")}</Button>
+          </DialogFooter>
+        </DialogShell>
       ) : null}
       {checkpointOpen && data ? (
         <CheckpointDialog
@@ -1358,49 +1397,48 @@ export function EditorShell({ projectId }: { projectId: string }) {
         />
       ) : null}
       {publishOpen ? (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-text-primary/40 p-4">
-          <button
-            type="button"
-            className="absolute inset-0 cursor-default"
-            aria-label={shellText(labels, "shellClose", "닫기")}
-            disabled={status === "publishing"}
-            onClick={() => {
+        <DialogShell
+          titleId="publish-dialog-title"
+          panelRef={publishPanelRef}
+          onClose={() => {
+            if (status === "publishing") return;
+            setPublishOpen(false);
+          }}
+          closeLabel={shellText(labels, "shellClose", "닫기")}
+          closeDisabled={status === "publishing"}
+          size="md"
+        >
+          <DialogHeader
+            titleId="publish-dialog-title"
+            title={publishDone ? shellText(labels, "shellPublishedTitle", "발행했습니다") : data.project.status === "PUBLISHED" ? shellText(labels, "shellRepublishTitle", "다시 발행") : shellText(labels, "shellPublishTitle", "발행")}
+            onClose={() => {
               if (status === "publishing") return;
               setPublishOpen(false);
             }}
+            closeLabel={shellText(labels, "shellClose", "닫기")}
+            closeDisabled={status === "publishing"}
           />
-          <div
-            ref={publishPanelRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="publish-dialog-title"
-            className="relative z-10 max-h-[85vh] w-full max-w-md overflow-y-auto rounded-[16px] border border-border bg-white p-6"
-          >
+          <DialogBody>
             {publishDone ? (
               <>
-                <h2 id="publish-dialog-title" className="text-xl font-bold">{shellText(labels, "shellPublishedTitle", "발행했습니다")}</h2>
-                <p className="mt-2 text-sm text-text-body">{shellText(labels, "shellPublishedBody", "공개 주소에서 발행된 페이지를 볼 수 있습니다. 이후 수정은 다시 발행해야 공개 페이지에 반영됩니다.")}</p>
+                <p className="text-sm leading-relaxed text-text-body">{shellText(labels, "shellPublishedBody", "공개 주소에서 발행된 페이지를 볼 수 있습니다. 이후 수정은 다시 발행해야 공개 페이지에 반영됩니다.")}</p>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <a href={`/${snapshot.publicSlug}`} target="_blank" rel="noreferrer" className="inline-flex h-12 items-center rounded-[14px] bg-primary px-5 text-[17px] font-semibold text-white">
+                  <a href={`/${snapshot.publicSlug}`} target="_blank" rel="noreferrer" className="inline-flex h-11 items-center rounded-[14px] bg-primary px-4 text-[15px] font-semibold text-white">
                     {shellText(labels, "shellLive", "발행 페이지")}
                   </a>
-                  <Link href={`/admin/projects/${projectId}/versions`} className="inline-flex h-12 items-center rounded-[14px] border border-border px-5 text-[17px] font-semibold">
+                  <Link href={`/admin/projects/${projectId}/versions`} className="inline-flex h-11 items-center rounded-[14px] border border-border px-4 text-[15px] font-semibold">
                     {shellText(labels, "shellVersions", "버전 기록")}
                   </Link>
                 </div>
-                <Button variant="ghost" className="mt-4" onClick={() => setPublishOpen(false)}>
-                  {shellText(labels, "shellClose", "닫기")}
-                </Button>
               </>
             ) : (
               <>
-                <h2 id="publish-dialog-title" className="text-xl font-bold">{data.project.status === "PUBLISHED" ? shellText(labels, "shellRepublishTitle", "다시 발행") : shellText(labels, "shellPublishTitle", "발행")}</h2>
-                <p className="mt-2 text-sm text-text-body">{shellText(labels, "shellPublishBody", "없는 항목이 있어도 발행할 수 있습니다. 항목을 누르면 그 칸으로 이동합니다. 개인정보 처리 주체가 확정되지 않으면 발행이 거절될 수 있습니다.")}</p>
+                <p className="text-sm leading-relaxed text-text-body">{shellText(labels, "shellPublishBody", "없는 항목이 있어도 발행할 수 있습니다. 항목을 누르면 그 칸으로 이동합니다. 개인정보 처리 주체가 확정되지 않으면 발행이 거절될 수 있습니다.")}</p>
                 {(() => {
                   const notes = publishNotes(snapshot);
                   if (notes.length === 0) return null;
                   return (
-                    <ul className="mt-4 space-y-2 rounded-[16px] border border-border bg-surface p-4 text-sm text-text-body">
+                    <ul className="mt-4 space-y-2 rounded-[14px] border border-border bg-surface p-3 text-sm text-text-body">
                       {notes.map((note) => (
                         <li key={note}>{note}</li>
                       ))}
@@ -1410,28 +1448,36 @@ export function EditorShell({ projectId }: { projectId: string }) {
                 <div className="mt-4">
                   <PublishChecklist snapshot={snapshot} onOpen={openChecklistTarget} />
                 </div>
-                <label className="mb-4 block text-sm font-medium">
+                <label className="mt-4 block text-sm font-medium">
                   {shellText(labels, "shellPublishNote", "이번 발행 메모")}
                   <textarea
-                    className="ui-field mt-2 min-h-24 py-3"
+                    className="ui-field mt-2 min-h-20 py-2.5 text-sm"
                     maxLength={200}
                     value={changeSummary}
                     placeholder={shellText(labels, "shellPublishMemoPlaceholder", "비우면 최초 발행 또는 재발행으로 기록됩니다.")}
                     onChange={(event) => setChangeSummary(event.target.value)}
                   />
                 </label>
-                <div className="flex flex-wrap gap-2">
-                  <Button onClick={() => void publish()} disabled={status === "publishing"}>
-                    {status === "publishing" ? shellText(labels, "shellPublishing", "발행 중") : shellText(labels, "shellPublishConfirm", "이 내용으로 발행")}
-                  </Button>
-                  <Button variant="ghost" disabled={status === "publishing"} onClick={() => setPublishOpen(false)}>
-                    {shellText(labels, "shellCancel", "취소")}
-                  </Button>
-                </div>
               </>
             )}
-          </div>
-        </div>
+          </DialogBody>
+          <DialogFooter>
+            {publishDone ? (
+              <Button variant="ghost" className="h-11 px-4 text-[15px]" onClick={() => setPublishOpen(false)}>
+                {shellText(labels, "shellClose", "닫기")}
+              </Button>
+            ) : (
+              <>
+                <Button variant="ghost" className="h-11 px-4 text-[15px]" disabled={status === "publishing"} onClick={() => setPublishOpen(false)}>
+                  {shellText(labels, "shellCancel", "취소")}
+                </Button>
+                <Button className="h-11 px-4 text-[15px]" onClick={() => void publish()} disabled={status === "publishing"}>
+                  {status === "publishing" ? shellText(labels, "shellPublishing", "발행 중") : shellText(labels, "shellPublishConfirm", "이 내용으로 발행")}
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogShell>
       ) : null}
     </div>
   );

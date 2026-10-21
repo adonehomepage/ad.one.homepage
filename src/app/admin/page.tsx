@@ -60,14 +60,14 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold">{orgText("navDashboard")}</h1>
+        <h1 className="text-xl font-bold tracking-tight">{orgText("navDashboard")}</h1>
         <p className="mt-2 text-text-body">{orgText("dashboardBody")}</p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {cards.map((card) => (
           <Link key={card.label} href={card.href} className="ui-card">
             <p className="text-sm text-text-muted">{card.label}</p>
-            <p className="mt-2 text-3xl font-bold">{card.value}</p>
+            <p className="mt-1 text-2xl font-bold tracking-tight">{card.value}</p>
           </Link>
         ))}
       </div>

@@ -16,7 +16,7 @@ export default async function MembersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">{orgText("navMembers")}</h1>
+        <h1 className="text-xl font-bold tracking-tight">{orgText("navMembers")}</h1>
         <p className="mt-2 text-sm text-text-body">{orgText("membersBody")}</p>
       </div>
       <InviteForm />

@@ -11,15 +11,14 @@ import { daysUntil } from "@/lib/datetime";
 import { appConfig } from "@/lib/config";
 import { CopyUrlButton } from "@/components/ui/copy-url-button";
 import { orgText } from "@/modules/admin/org-copy";
+import { ProjectRowActions } from "@/app/admin/projects/project-row-actions";
+import { ProjectMoreFilter } from "@/app/admin/projects/status-filter";
 import { cn } from "@/lib/cn";
 
 const STATUS_FILTERS = [
   { value: "", labelKey: "filterAll" as const },
   { value: "PUBLISHED", labelKey: "badgePublished" as const },
   { value: "DRAFT", labelKey: "badgeDraft" as const },
-  { value: "PAUSED", labelKey: "badgePaused" as const },
-  { value: "EXPIRED", labelKey: "badgeExpired" as const },
-  { value: "PENDING_DELETION", labelKey: "badgePending" as const },
 ];
 
 function projectsQuery(params: { q?: string; status?: string; expiring?: string; page?: number }) {
@@ -53,16 +52,16 @@ export default async function ProjectsPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">{orgText("navProjects")}</h1>
+          <h1 className="text-xl font-bold tracking-tight">{orgText("navProjects")}</h1>
           <p className="mt-1 text-sm text-text-body">{orgText("projectsBody")}</p>
         </div>
         <Link href="/admin/projects/new">
-          <Button data-testid="create-project-nav">{orgText("createProject")}</Button>
+          <Button className="h-9 px-4 text-sm" data-testid="create-project-nav">{orgText("createProject")}</Button>
         </Link>
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-1.5">
         {STATUS_FILTERS.map((filter) => {
           const active = (params.status ?? "") === filter.value && params.expiring !== "1";
           const href = filter.value ? `/admin/projects?status=${filter.value}` : "/admin/projects";
@@ -70,26 +69,15 @@ export default async function ProjectsPage({
             <Link
               key={filter.labelKey}
               href={href}
-              className={cn(
-                "inline-flex h-12 items-center rounded-[14px] border px-4 text-[17px] font-semibold",
-                active ? "border-primary bg-primary-soft text-primary" : "border-border bg-white text-text-body",
-              )}
+              className={cn("ui-chip", active && "border-primary bg-primary-soft text-primary-soft-foreground")}
             >
               {orgText(filter.labelKey)}
             </Link>
           );
         })}
-        <Link
-          href="/admin/projects?expiring=1"
-          className={cn(
-            "inline-flex h-12 items-center rounded-[14px] border px-4 text-[17px] font-semibold",
-            params.expiring === "1" ? "border-primary bg-primary-soft text-primary" : "border-border bg-white text-text-body",
-          )}
-        >
-          {orgText("cardExpiring")}
-        </Link>
+        <ProjectMoreFilter status={params.status} expiring={params.expiring} />
       </div>
-      <form className="flex gap-2">
+      <form className="flex items-center gap-2">
         <Input name="q" defaultValue={params.q} placeholder={orgText("projectSearch")} aria-label={orgText("searchAriaLabel")} className="min-w-0 flex-1" />
         {params.status ? <input type="hidden" name="status" value={params.status} /> : null}
         {params.expiring === "1" ? <input type="hidden" name="expiring" value="1" /> : null}
@@ -152,9 +140,7 @@ export default async function ProjectsPage({
                   </td>
                   <td className="px-4 py-3">{Number(leadCount)}</td>
                   <td className="px-4 py-3">
-                    <Link className="text-primary" href={`/admin/projects/${project.id}/editor`}>
-                      {orgText("edit")}
-                    </Link>
+                    <ProjectRowActions projectId={project.id} name={project.name} />
                   </td>
                 </tr>
               ))}
@@ -167,7 +153,7 @@ export default async function ProjectsPage({
           {hasPrev ? (
             <Link
               href={projectsQuery({ q: params.q, status: params.status, expiring: params.expiring, page: currentPage - 1 })}
-              className="text-[17px] font-semibold text-primary"
+              className="text-sm font-semibold text-primary"
             >
               {orgText("pagePrev")}
             </Link>
@@ -178,7 +164,7 @@ export default async function ProjectsPage({
           {hasNext ? (
             <Link
               href={projectsQuery({ q: params.q, status: params.status, expiring: params.expiring, page: currentPage + 1 })}
-              className="text-[17px] font-semibold text-primary"
+              className="text-sm font-semibold text-primary"
             >
               {orgText("pageNext")}
             </Link>

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { DialogBody, DialogFooter, DialogHeader, DialogShell } from "@/components/ui/dialog-shell";
 import { Input } from "@/components/ui/input";
 import { useDialogFocusTrap } from "@/lib/a11y/dialog-focus";
 import { deleteCheckpoint, listCheckpoints, saveCheckpoint, type DraftCheckpoint } from "@/modules/editor/checkpoints";
@@ -62,68 +63,64 @@ export function CheckpointDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-text-primary/40 p-4">
-      <button type="button" className="absolute inset-0 cursor-default" aria-label={shellText(globalSettings, "shellClose", "닫기")} onClick={onClose} />
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="checkpoint-dialog-title"
-        className="relative z-10 max-h-[85vh] w-full max-w-md overflow-y-auto rounded-[16px] border border-border bg-white p-6"
-      >
-        <h2 id="checkpoint-dialog-title" className="text-xl font-bold">
-          {shellText(globalSettings, "shellCheckpoint", "임시 저장")}
-        </h2>
-        <p className="mt-2 text-sm text-text-body">
-          {shellText(
-            globalSettings,
-            "shellCheckpointBody",
-            "지금 작업본을 이 브라우저에 최대 10개까지 남겨 둡니다. 되돌리면 작업본만 바뀌고, 공개 페이지는 다시 발행해야 반영됩니다.",
-          )}
-        </p>
-        <div className="mt-4 flex gap-2">
-          <Input
-            ref={inputRef}
-            value={label}
-            maxLength={40}
-            placeholder={shellText(globalSettings, "shellCheckpointName", "저장 이름")}
-            onChange={(event) => setLabel(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") save();
-            }}
-          />
-          <Button type="button" onClick={save}>
-            {shellText(globalSettings, "shellCheckpointSave", "저장")}
-          </Button>
-        </div>
-        {notice ? (
-          <p className="mt-2 text-sm text-primary" role="status" aria-live="polite">
-            {notice}
+    <>
+      <DialogShell titleId="checkpoint-dialog-title" panelRef={panelRef} onClose={onClose} closeLabel={shellText(globalSettings, "shellClose", "닫기")} size="md">
+        <DialogHeader titleId="checkpoint-dialog-title" title={shellText(globalSettings, "shellCheckpoint", "임시 저장")} onClose={onClose} closeLabel={shellText(globalSettings, "shellClose", "닫기")} />
+        <DialogBody>
+          <p className="text-sm leading-relaxed text-text-body">
+            {shellText(
+              globalSettings,
+              "shellCheckpointBody",
+              "지금 작업본을 이 브라우저에 최대 10개까지 남겨 둡니다. 되돌리면 작업본만 바뀌고, 공개 페이지는 다시 발행해야 반영됩니다.",
+            )}
           </p>
-        ) : null}
-        <ul className="mt-4 space-y-3">
-          {items.length === 0 ? (
-            <li className="text-sm text-text-muted">{shellText(globalSettings, "shellCheckpointEmpty", "아직 임시 저장이 없습니다.")}</li>
+          <div className="mt-4 flex gap-2">
+            <Input
+              ref={inputRef}
+              value={label}
+              maxLength={40}
+              className="h-11 min-h-11 text-sm"
+              placeholder={shellText(globalSettings, "shellCheckpointName", "저장 이름")}
+              onChange={(event) => setLabel(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") save();
+              }}
+            />
+            <Button type="button" className="h-11 shrink-0 px-4 text-[15px]" onClick={save}>
+              {shellText(globalSettings, "shellCheckpointSave", "저장")}
+            </Button>
+          </div>
+          {notice ? (
+            <p className="mt-2 text-sm text-primary" role="status" aria-live="polite">
+              {notice}
+            </p>
           ) : null}
-          {items.map((item) => (
-            <li key={item.id} className="rounded-[16px] border border-border p-4">
-              <p className="font-semibold">{item.label}</p>
-              <p className="mt-1 text-xs text-text-muted">{new Date(item.savedAt).toLocaleString("ko-KR")}</p>
-              <div className="mt-3 flex gap-2">
-                <Button type="button" variant="soft" onClick={() => setPending({ type: "restore", item })}>
-                  {shellText(globalSettings, "shellCheckpointRestoreButton", "이 내용으로 되돌리기")}
-                </Button>
-                <Button type="button" variant="ghost" onClick={() => setPending({ type: "delete", item })}>
-                  {shellText(globalSettings, "editRemove", "삭제")}
-                </Button>
-              </div>
-            </li>
-          ))}
-        </ul>
-        <Button variant="ghost" className="mt-4" onClick={onClose}>
-          {shellText(globalSettings, "shellClose", "닫기")}
-        </Button>
-      </div>
+          <ul className="mt-4 space-y-2">
+            {items.length === 0 ? (
+              <li className="rounded-[14px] border border-dashed border-border px-3 py-4 text-sm text-text-muted">{shellText(globalSettings, "shellCheckpointEmpty", "아직 임시 저장이 없습니다.")}</li>
+            ) : null}
+            {items.map((item) => (
+              <li key={item.id} className="rounded-[14px] border border-border px-3 py-3">
+                <p className="text-sm font-semibold">{item.label}</p>
+                <p className="mt-1 text-xs text-text-muted">{new Date(item.savedAt).toLocaleString("ko-KR")}</p>
+                <div className="mt-3 flex gap-2">
+                  <Button type="button" variant="soft" className="h-9 px-3 text-sm" onClick={() => setPending({ type: "restore", item })}>
+                    {shellText(globalSettings, "shellCheckpointRestoreButton", "이 내용으로 되돌리기")}
+                  </Button>
+                  <Button type="button" variant="ghost" className="h-9 px-3 text-sm" onClick={() => setPending({ type: "delete", item })}>
+                    {shellText(globalSettings, "editRemove", "삭제")}
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </DialogBody>
+        <DialogFooter>
+          <Button variant="ghost" className="h-11 px-4 text-[15px]" onClick={onClose}>
+            {shellText(globalSettings, "shellClose", "닫기")}
+          </Button>
+        </DialogFooter>
+      </DialogShell>
       <ConfirmDialog
         open={pending?.type === "restore"}
         title={shellText(globalSettings, "shellCheckpointRestoreButton", "이 내용으로 되돌리기")}
@@ -145,6 +142,6 @@ export function CheckpointDialog({
           setPending(null);
         }}
       />
-    </div>
+    </>
   );
 }

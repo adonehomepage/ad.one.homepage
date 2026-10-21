@@ -35,26 +35,23 @@ export default async function AnalyticsPage({
   const rate = (data.totals.conversionRate * 100).toFixed(1);
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">{text("shellAnalytics", "통계")}</h1>
-          <p className="mt-2 text-sm text-text-body">{text("shellAnalyticsBody", "전환율 = 관심고객 등록 / 순 방문자. 개인정보는 이벤트에 저장되지 않습니다.")}</p>
-          <div className="mt-4 flex flex-wrap gap-2">
+      <div>
+        <div className="flex items-center justify-between gap-4">
+          <h1 className="text-xl font-bold tracking-tight">{text("shellAnalytics", "통계")}</h1>
+          <PdfDownload projectId={projectId} label={text("shellPdf", "PDF 보고서")} days={days} />
+        </div>
+        <p className="mt-1 text-sm text-text-body">{text("shellAnalyticsBody", "전환율 = 관심고객 등록 / 순 방문자. 개인정보는 이벤트에 저장되지 않습니다.")}</p>
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
             {RANGE_DAYS.map((value) => (
               <Link
                 key={value}
                 href={`/admin/projects/${projectId}/analytics?days=${value}`}
-                className={cn(
-                  "inline-flex h-12 items-center rounded-[14px] border px-4 text-[17px] font-semibold",
-                  days === value ? "border-primary bg-primary-soft text-primary" : "border-border bg-white text-text-body",
-                )}
+                className={cn("ui-chip", days === value && "border-primary bg-primary-soft text-primary-soft-foreground")}
               >
                 {text("shellAnalyticsDays", "최근 {count}일").replace("{count}", String(value))}
               </Link>
             ))}
-          </div>
         </div>
-        <PdfDownload projectId={projectId} label={text("shellPdf", "PDF 보고서")} days={days} />
       </div>
       <div className="grid gap-4 md:grid-cols-4">
         {[
@@ -65,7 +62,7 @@ export default async function AnalyticsPage({
         ].map(([key, fallback, value]) => (
           <div key={String(key)} className="ui-card">
             <p className="text-sm text-text-muted">{text(String(key), String(fallback))}</p>
-            <p className="mt-2 text-3xl font-bold">{value}</p>
+            <p className="mt-1 text-2xl font-bold tracking-tight">{value}</p>
           </div>
         ))}
       </div>

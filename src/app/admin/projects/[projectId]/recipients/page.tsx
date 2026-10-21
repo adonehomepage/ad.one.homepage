@@ -112,7 +112,7 @@ export default function RecipientsPage({ params }: { params: Promise<{ projectId
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">{text("shellRecipients", "광고주 수신자")}</h1>
+        <h1 className="text-xl font-bold tracking-tight">{text("shellRecipients", "광고주 수신자")}</h1>
         <p className="mt-2 text-sm text-text-body">
           {text("shellRecipientsBody", "활성 수신자는 최대 5명입니다. 인증되지 않은 연락처에는 관심고객 개인정보를 보내지 않습니다.")}
         </p>
@@ -137,14 +137,16 @@ export default function RecipientsPage({ params }: { params: Promise<{ projectId
         <Field label={text("shellRecipientEmail", "이메일")}>
           <Input name="email" type="email" data-testid="recipient-email" />
         </Field>
-        <Field label={text("shellRecipientChannel", "알림 채널")}>
-          <select name="preferredChannel" defaultValue="KAKAO_ALIMTALK" className="ui-field" data-testid="recipient-channel">
-            <option value="KAKAO_ALIMTALK">{text("shellChannelKakao", "카카오 알림톡")}</option>
-            <option value="EMAIL">{text("shellChannelEmail", "이메일")}</option>
-          </select>
-        </Field>
-        <div className="flex items-end">
-          <Button type="submit" loading={loading} data-testid="recipient-add">
+        <div className="flex items-end gap-3 md:col-span-2">
+          <div className="min-w-0 flex-1">
+            <Field label={text("shellRecipientChannel", "알림 채널")}>
+              <select name="preferredChannel" defaultValue="KAKAO_ALIMTALK" className="ui-field" data-testid="recipient-channel">
+                <option value="KAKAO_ALIMTALK">{text("shellChannelKakao", "카카오 알림톡")}</option>
+                <option value="EMAIL">{text("shellChannelEmail", "이메일")}</option>
+              </select>
+            </Field>
+          </div>
+          <Button type="submit" loading={loading} data-testid="recipient-add" className="shrink-0">
             {text("shellRecipientAdd", "수신자 등록")}
           </Button>
         </div>

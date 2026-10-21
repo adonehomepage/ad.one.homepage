@@ -77,7 +77,7 @@ export function AdminShell({
         onClick={onNavigate}
         aria-current={active ? "page" : undefined}
         className={cn(
-          "block rounded-[10px] px-3 py-3 text-sm font-medium",
+          "block rounded-[10px] px-3 py-2 text-sm font-medium",
           active ? "bg-primary-soft text-primary-soft-foreground" : "text-text-body hover:bg-surface",
         )}
       >
@@ -101,7 +101,7 @@ export function AdminShell({
         </nav>
       </aside>
       <div className="md:pl-60">
-        <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-border bg-white/75 px-6 py-5 backdrop-blur-md md:px-10">
+        <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-border bg-white/75 px-6 backdrop-blur-md md:px-8">
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
@@ -134,7 +134,7 @@ export function AdminShell({
             {items.map((item) => navLink(item, () => setMenuOpen(false)))}
           </nav>
         ) : null}
-        <main id="admin-main" className="px-6 py-10 md:px-10 md:py-12" tabIndex={-1}>
+        <main id="admin-main" className="admin-compact px-6 py-6 md:px-8" tabIndex={-1}>
           {children}
         </main>
       </div>

@@ -64,9 +64,9 @@ export default async function NotificationsPage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">{orgText("navNotifications")}</h1>
-        <p className="mt-2 text-sm text-text-body">{orgText("notificationsBody")}</p>
-        <div className="mt-4 flex flex-wrap gap-2">
+        <h1 className="text-xl font-bold tracking-tight">{orgText("navNotifications")}</h1>
+        <p className="mt-1 text-sm text-text-body">{orgText("notificationsBody")}</p>
+        <div className="mt-4 flex flex-wrap items-center gap-1.5">
           {STATUS_FILTERS.map((filter) => {
             const active = (status ?? "") === filter.value;
             const href = filter.value ? `/admin/notifications?status=${filter.value}` : "/admin/notifications";
@@ -74,10 +74,7 @@ export default async function NotificationsPage({
               <Link
                 key={filter.labelKey}
                 href={href}
-                className={cn(
-                  "inline-flex h-12 items-center rounded-[14px] border px-4 text-[17px] font-semibold",
-                  active ? "border-primary bg-primary-soft text-primary" : "border-border bg-white text-text-body",
-                )}
+                className={cn("ui-chip", active && "border-primary bg-primary-soft text-primary-soft-foreground")}
               >
                 {orgText(filter.labelKey)}
               </Link>
@@ -110,7 +107,7 @@ export default async function NotificationsPage({
       {hasPrev || hasNext ? (
         <div className="flex items-center justify-between gap-3">
           {hasPrev ? (
-            <Link href={notificationsQuery({ status, page: page - 1 })} className="text-[17px] font-semibold text-primary">
+            <Link href={notificationsQuery({ status, page: page - 1 })} className="text-sm font-semibold text-primary">
               {orgText("pagePrev")}
             </Link>
           ) : (
@@ -118,7 +115,7 @@ export default async function NotificationsPage({
           )}
           <span className="text-sm text-text-muted">{orgText("pageStatus").replace("{page}", String(page))}</span>
           {hasNext ? (
-            <Link href={notificationsQuery({ status, page: page + 1 })} className="text-[17px] font-semibold text-primary">
+            <Link href={notificationsQuery({ status, page: page + 1 })} className="text-sm font-semibold text-primary">
               {orgText("pageNext")}
             </Link>
           ) : (

@@ -54,7 +54,7 @@ function LoginFields({ brandName }: { brandName: string }) {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-surface px-4">
-      <form onSubmit={onSubmit} className="w-full max-w-md space-y-5 ui-card">
+      <form onSubmit={onSubmit} className="admin-compact w-full max-w-md space-y-4 ui-card">
         <div>
           <p className="text-sm font-medium text-primary">{brandName}</p>
           <h1 className="mt-2 text-2xl font-bold">{orgText("loginTitle")}</h1>

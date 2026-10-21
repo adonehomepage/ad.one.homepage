@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { DialogBody, DialogFooter, DialogHeader, DialogShell } from "@/components/ui/dialog-shell";
 import { orgText } from "@/modules/admin/org-copy";
 
 export function ConfirmDialog({
@@ -33,8 +34,7 @@ export function ConfirmDialog({
 
   useEffect(() => {
     if (!open) return;
-    const previous = document.activeElement as HTMLElement | null;
-    // danger는 취소에 포커스해 Enter 실수 방지
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     (danger ? cancelRef : confirmRef).current?.focus();
 
     function focusables() {
@@ -61,49 +61,35 @@ export function ConfirmDialog({
       }
     }
 
-    window.addEventListener("keydown", onKey);
+    document.addEventListener("keydown", onKey);
     return () => {
-      window.removeEventListener("keydown", onKey);
-      previous?.focus?.();
+      document.removeEventListener("keydown", onKey);
+      if (previous && document.contains(previous)) previous.focus();
     };
   }, [open, danger, onCancel]);
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="presentation">
-      <button type="button" className="absolute inset-0 bg-black/40" aria-label={cancelLabel} onClick={onCancel} />
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-describedby={description ? descId : undefined}
-        className="relative z-10 w-full max-w-md space-y-4 ui-card"
-      >
-        <h2 id={titleId} className="text-xl font-bold">
-          {title}
-        </h2>
-        {description ? (
-          <p id={descId} className="text-sm text-text-body">
+    <DialogShell titleId={titleId} describedBy={description ? descId : undefined} panelRef={panelRef} onClose={onCancel} closeLabel={cancelLabel} size="sm">
+      <DialogHeader titleId={titleId} title={title} onClose={onCancel} closeLabel={cancelLabel} />
+      {description ? (
+        <DialogBody>
+          <p id={descId} className="text-sm leading-relaxed text-text-body">
             {description}
           </p>
-        ) : null}
-        <div className="flex justify-end gap-2">
-          <Button ref={cancelRef} type="button" variant="ghost" onClick={onCancel} disabled={loading}>
-            {cancelLabel}
-          </Button>
-          <Button
-            ref={confirmRef}
-            type="button"
-            variant={danger ? "danger" : "primary"}
-            loading={loading}
-            onClick={onConfirm}
-          >
-            {confirmLabel}
-          </Button>
-        </div>
-      </div>
-    </div>
+        </DialogBody>
+      ) : (
+        <div className="h-2" />
+      )}
+      <DialogFooter>
+        <Button ref={cancelRef} type="button" variant="ghost" className="h-11 px-4 text-[15px]" onClick={onCancel} disabled={loading}>
+          {cancelLabel}
+        </Button>
+        <Button ref={confirmRef} type="button" variant={danger ? "danger" : "primary"} className="h-11 px-4 text-[15px]" loading={loading} onClick={onConfirm}>
+          {confirmLabel}
+        </Button>
+      </DialogFooter>
+    </DialogShell>
   );
 }

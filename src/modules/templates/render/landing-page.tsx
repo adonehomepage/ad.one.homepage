@@ -321,15 +321,15 @@ function SiteLogo({ snapshot }: { snapshot: PageSnapshot }) {
   if (logoUrl && !edit) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={logoUrl} alt="" className="h-10 w-10 object-contain" />
+      <img src={logoUrl} alt="" className="h-[50px] w-[50px] rounded-[10px] border border-border object-contain" />
     );
   }
   if (logoUrl && edit) {
     return (
-      <span className="inline-flex flex-col items-start">
-        <label className="cursor-pointer" title={chromeText(chrome, "ariaLogoChange", "로고 바꾸기")}>
+      <span className="inline-flex items-center gap-1">
+        <label className="relative flex h-[50px] w-[50px] cursor-pointer items-center justify-center overflow-hidden rounded-[10px] border border-border bg-white" title={chromeText(chrome, "ariaLogoChange", "로고 바꾸기")}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={logoUrl} alt="" className="h-10 w-10 object-contain" />
+          <img src={logoUrl} alt="" className="h-full w-full object-contain" />
           <input
             type="file"
             accept="image/*"
@@ -341,28 +341,39 @@ function SiteLogo({ snapshot }: { snapshot: PageSnapshot }) {
             }}
           />
         </label>
-        <button type="button" className="mt-1 text-xs text-text-muted" onClick={() => edit.setLogo("")}>
-          {chromeText(chrome, "mediaLogoDelete", "로고 삭제")}
+        <button type="button" className="text-[11px] text-text-muted" onClick={() => edit.setLogo("")}>
+          {chromeText(chrome, "mediaLogoDelete", "삭제")}
         </button>
-        {hint ? <span className="mt-1 block max-w-40 text-xs text-danger">{hint}</span> : null}
+        {hint ? <span className="max-w-40 text-[11px] text-danger">{hint}</span> : null}
       </span>
     );
   }
   if (!edit) return null;
+  const callout = hint || chromeText(chrome, "mediaLogoHint", "로고를 50×50 사이즈 이미지로 교체해 주세요.");
   return (
-    <label className="max-w-40 cursor-pointer text-xs leading-snug text-text-muted">
-      {hint || chromeText(chrome, "mediaLogoHint", "로고를 50×50 사이즈 이미지로 교체해 주세요.")}
-      <input
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          if (!file) return;
-          void upload(file).catch(() => setHint(chromeText(chrome, "mediaLogoFail", "로고를 올리지 못했습니다.")));
-        }}
-      />
-    </label>
+    <span className="relative inline-flex">
+      <label className="relative flex h-[50px] w-[50px] cursor-pointer items-center justify-center overflow-hidden rounded-[10px] border border-dashed border-border bg-surface text-text-muted" title={chromeText(chrome, "ariaLogoChange", "로고 바꾸기")}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
+          <rect x="3" y="5" width="18" height="14" rx="2" />
+          <circle cx="9" cy="10" r="1.5" />
+          <path d="m21 16-5-5-9 9" />
+        </svg>
+        <input
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            void upload(file).catch(() => setHint(chromeText(chrome, "mediaLogoFail", "로고를 올리지 못했습니다.")));
+          }}
+        />
+      </label>
+      <span role="status" className="pointer-events-none absolute left-0 top-[calc(100%+10px)] z-40 w-max max-w-[220px] rounded-[8px] bg-text-primary px-3 py-1.5 text-[11px] font-semibold leading-snug text-white">
+        <span className="absolute left-5 top-[-3px] h-1.5 w-1.5 rotate-45 bg-text-primary" aria-hidden />
+        {callout}
+      </span>
+    </span>
   );
 }
 
@@ -998,15 +1009,15 @@ function OverviewGlance({
       {shown.length > 0 ? (
         <dl className="mt-4 overflow-hidden rounded-[16px] border border-border bg-white">
           {shown.map(({ fact, index }) => (
-            <div key={`${overview.id}-glance-${index}`} className="flex items-start justify-between gap-4 border-b border-border px-4 py-3 last:border-b-0">
-              <dt className="text-sm text-text-muted">
+            <div key={`${overview.id}-glance-${index}`} className={cn("grid border-b border-border last:border-b-0", narrow ? "grid-cols-1" : "grid-cols-[7.5rem_1fr]")}>
+              <dt className="border-r border-border bg-surface px-3 py-3 text-sm text-text-muted">
                 <InlineText
                   value={fact.label}
                   placeholder={chromeText(chrome, "phItem", "항목")}
                   onCommit={edit ? (value) => setFacts(facts.map((row, rowIndex) => (rowIndex === index ? { ...row, label: value } : row))) : undefined}
                 />
               </dt>
-              <dd className="text-right text-sm font-semibold">
+              <dd className="px-3 py-3 text-sm font-semibold">
                 <InlineText
                   value={fact.value}
                   placeholder={chromeText(chrome, "phContent", "내용")}
@@ -1208,11 +1219,11 @@ function Hero({
     return (
       <div className={cn("mx-auto grid max-w-6xl gap-8 px-4 py-10", !narrow && "lg:grid-cols-[1.1fr_0.9fr] lg:items-start")}>
         <div>
-          <div className="relative min-h-80 overflow-hidden rounded-[16px] border border-border bg-surface">
+          <div className="relative aspect-square overflow-hidden bg-surface">
             {imageUrl || (narrow && mobileUrl) ? (
-              <HeroPicture imageUrl={imageUrl} mobileUrl={mobileUrl} narrow={narrow} alt={imageAlt} objectPosition={imageObjectPosition} className="h-full min-h-80 w-full object-cover" />
+              <HeroPicture imageUrl={imageUrl} mobileUrl={mobileUrl} narrow={narrow} alt={imageAlt} objectPosition={imageObjectPosition} className="h-full w-full object-cover" />
             ) : (
-              <div className="flex min-h-80 items-center justify-center px-4 text-center text-sm text-text-muted">{emptyMedia()}</div>
+              <div className="flex h-full items-center justify-center px-4 text-center text-sm text-text-muted">{emptyMedia()}</div>
             )}
             <HeroImageButton section={section} imageUrl={imageUrl} />
           </div>
@@ -1230,7 +1241,6 @@ function Hero({
             <BoldCopy value={String(content.subheadline ?? "")} multiline placeholder={chromeText(chrome, "phSubheadline", "안내 문구")} hint onCommit={textCommit(section, "subheadline", edit)} />
           </p>
           <PriceBox section={section} />
-          <OverviewGlance snapshot={snapshot} narrow={narrow} limit={4} showSchedule={false} />
           <div className="mt-6 flex flex-wrap gap-3">
             {live && externalFormUrl(snapshot) ? (
               <TrackedLink href={externalFormUrl(snapshot)} target="_blank" slug={snapshot.publicSlug} eventName="lead_cta_click" className="inline-flex h-12 items-center rounded-[14px] bg-primary px-5 text-[17px] font-semibold text-white">
@@ -1545,7 +1555,7 @@ function Overview({ section, narrow, live }: { section: PageSection; stacked: bo
     edit?.patch(section.id, { ...section.content, schedule: next.slice(0, 8) });
   }
   return (
-    <div className="mx-auto max-w-6xl px-4 py-20">
+    <div className="mx-auto max-w-6xl border-b border-border px-4 py-14">
       <SectionEyebrow section={section} />
       <h2 className="mt-2 text-3xl font-bold break-keep">
         <InlineText value={String(section.content.heading ?? section.title)} onCommit={textCommit(section, "heading", edit)} placeholder={chromeText(chrome, "phTitle", "제목")} />
@@ -1557,17 +1567,17 @@ function Overview({ section, narrow, live }: { section: PageSection; stacked: bo
       ) : null}
       <OverviewStats section={section} narrow={narrow} />
       {(edit || facts.some((fact) => fact.label.trim() || fact.value.trim())) ? (
-      <div className="mt-8 overflow-hidden rounded-[16px] border border-border">
+      <div className="mt-8 overflow-hidden rounded-[16px] border border-border bg-white">
         {facts.map((fact, index) => edit || fact.label.trim() || fact.value.trim() ? (
           <div key={`${section.id}-fact-${index}`} className={cn("grid border-b border-border last:border-b-0", narrow ? "grid-cols-1" : "grid-cols-[11rem_1fr]")}>
-            <div className="bg-surface px-4 py-4 text-sm font-medium text-text-muted">
+            <div className="border-r border-border bg-surface px-4 py-3.5 text-sm font-medium text-text-muted">
               <InlineText
                 value={fact.label}
                 placeholder={chromeText(chrome, "phItem", "항목")}
                 onCommit={edit ? (value) => setFacts(facts.map((item, itemIndex) => (itemIndex === index ? { ...item, label: value } : item))) : undefined}
               />
             </div>
-            <div className="flex items-start justify-between gap-3 px-4 py-4">
+            <div className="flex items-start justify-between gap-3 px-4 py-3.5">
               <p className="font-semibold">
                 <InlineText
                   value={fact.value}

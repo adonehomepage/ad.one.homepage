@@ -313,7 +313,7 @@ export async function deleteProject(input: { organizationId: string; projectId: 
   await db
     .update(projects)
     .set({
-      status: "PENDING_DELETION",
+      status: "DELETED",
       deletedAt: now,
       deletionScheduledAt: now,
       updatedBy: input.userId,

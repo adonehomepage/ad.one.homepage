@@ -28,14 +28,14 @@ export default async function VersionsPage({ params }: { params: Promise<{ proje
   ).replace("{count}", String(appConfig.maxPublishedVersions));
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">{versionText(settings, "shellVersions", "버전 기록")}</h1>
-          <p className="mt-2 max-w-2xl text-sm text-text-body">{body}</p>
+      <div>
+        <div className="flex items-center justify-between gap-4">
+          <h1 className="text-xl font-bold tracking-tight">{versionText(settings, "shellVersions", "버전 기록")}</h1>
+          <Link href={`/admin/projects/${projectId}/editor`} className="shrink-0">
+            <Button variant="soft">수정으로</Button>
+          </Link>
         </div>
-        <Link href={`/admin/projects/${projectId}/editor`}>
-          <Button variant="soft">{versionText(settings, "shellVersionsBack", "편집으로")}</Button>
-        </Link>
+        <p className="mt-1 max-w-2xl text-sm text-text-body">{body}</p>
       </div>
       {versions.length === 0 ? (
         <EmptyState

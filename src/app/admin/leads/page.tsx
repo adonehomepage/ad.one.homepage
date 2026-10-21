@@ -41,10 +41,10 @@ export default async function AllLeadsPage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">{orgText("navLeads")}</h1>
+        <h1 className="text-xl font-bold tracking-tight">{orgText("navLeads")}</h1>
         <p className="mt-2 text-sm text-text-body">{orgText("leadsBody")}</p>
       </div>
-      <form className="flex gap-2">
+      <form className="flex items-center gap-2">
         <Input name="q" defaultValue={params.q} placeholder={orgText("leadSearch")} aria-label={orgText("searchAriaLabel")} className="min-w-0 flex-1" />
         {params.projectId ? <input type="hidden" name="projectId" value={params.projectId} /> : null}
         <Button variant="ghost" type="submit">
@@ -59,7 +59,7 @@ export default async function AllLeadsPage({
       {hasPrev || hasNext ? (
         <div className="flex items-center justify-between gap-3">
           {hasPrev ? (
-            <Link href={leadsQuery({ ...params, page: page - 1 })} className="text-[17px] font-semibold text-primary">
+            <Link href={leadsQuery({ ...params, page: page - 1 })} className="text-sm font-semibold text-primary">
               {orgText("pagePrev")}
             </Link>
           ) : (
@@ -67,7 +67,7 @@ export default async function AllLeadsPage({
           )}
           <span className="text-sm text-text-muted">{orgText("pageStatus").replace("{page}", String(page))}</span>
           {hasNext ? (
-            <Link href={leadsQuery({ ...params, page: page + 1 })} className="text-[17px] font-semibold text-primary">
+            <Link href={leadsQuery({ ...params, page: page + 1 })} className="text-sm font-semibold text-primary">
               {orgText("pageNext")}
             </Link>
           ) : (

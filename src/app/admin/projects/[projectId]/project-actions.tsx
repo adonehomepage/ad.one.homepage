@@ -29,7 +29,6 @@ export function ProjectActions({
   const router = useRouter();
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
-  const [confirmName, setConfirmName] = useState("");
   const [months, setMonths] = useState(1);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -70,7 +69,7 @@ export function ProjectActions({
       const res = await fetch(`/api/projects/${projectId}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirmName }),
+        body: JSON.stringify({ confirmName: name }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -126,13 +125,13 @@ export function ProjectActions({
   }
 
   return (
-    <div className="space-y-4 ui-card">
+    <div className="ui-card divide-y divide-border !p-0">
       {!published ? (
-        <div className="flex flex-wrap items-end gap-2">
-          <label className="min-w-[12rem] flex-1 space-y-1 text-sm">
-            <span className="font-medium text-text-body">{text("shellPublicSlug", "공개 URL")}</span>
+        <div className="flex flex-wrap items-center gap-3 px-5 py-3">
+          <span className="w-24 shrink-0 text-sm text-text-muted">{text("shellPublicSlug", "공개 URL")}</span>
+          <div className="min-w-[12rem] max-w-md flex-1">
             <Input value={nextSlug} onChange={(event) => setNextSlug(event.target.value)} aria-label={text("shellPublicSlug", "공개 URL")} />
-          </label>
+          </div>
           <Button
             variant="soft"
             type="button"
@@ -144,58 +143,56 @@ export function ProjectActions({
             {text("shellSlugSave", "URL 저장")}
           </Button>
         </div>
-      ) : null}
-      <div className="flex flex-wrap gap-2">
-        {published ? (
+      ) : (
+        <div className="flex flex-wrap items-center gap-2 px-5 py-3">
           <Button variant="ghost" type="button" aria-live="polite" onClick={() => void copyUrl()}>
             {copied ? text("shellCopied", "복사됨") : text("shellProjectCopyUrl", "URL 복사")}
           </Button>
-        ) : null}
-        {status === "PUBLISHED" ? (
-          <a href={`/${slug}`} target="_blank" rel="noreferrer">
-            <Button variant="ghost" type="button">
-              {text("shellPublicPage", "공개 페이지")}
+          {status === "PUBLISHED" ? (
+            <a href={`/${slug}`} target="_blank" rel="noreferrer">
+              <Button variant="ghost" type="button">
+                {text("shellPublicPage", "공개 페이지")}
+              </Button>
+            </a>
+          ) : null}
+          {status === "PUBLISHED" ? (
+            <Button
+              variant="ghost"
+              type="button"
+              data-testid="project-pause"
+              loading={loading}
+              loadingLabel={busy}
+              onClick={() => setPending("pause")}
+            >
+              {text("shellPause", "즉시 비공개")}
             </Button>
-          </a>
-        ) : null}
-        {status === "PUBLISHED" ? (
-          <Button
-            variant="ghost"
-            type="button"
-            data-testid="project-pause"
-            loading={loading}
-            loadingLabel={busy}
-            onClick={() => setPending("pause")}
-          >
-            {text("shellPause", "즉시 비공개")}
-          </Button>
-        ) : null}
-        {status === "PAUSED" || status === "EXPIRED" ? (
-          <Button
-            variant="soft"
-            type="button"
-            data-testid="project-resume"
-            loading={loading}
-            loadingLabel={busy}
-            onClick={() => call(`/api/projects/${projectId}/resume`, undefined, "shellResumeOk", "다시 공개했습니다.")}
-          >
-            {text("shellResume", "재공개")}
-          </Button>
-        ) : null}
-      </div>
-      <div className="flex flex-wrap items-end gap-2">
-        <label className="text-sm">
-          {text("shellExtendLabel", "연장(개월)")}
+          ) : null}
+          {status === "PAUSED" || status === "EXPIRED" ? (
+            <Button
+              variant="soft"
+              type="button"
+              data-testid="project-resume"
+              loading={loading}
+              loadingLabel={busy}
+              onClick={() => call(`/api/projects/${projectId}/resume`, undefined, "shellResumeOk", "다시 공개했습니다.")}
+            >
+              {text("shellResume", "재공개")}
+            </Button>
+          ) : null}
+        </div>
+      )}
+      <div className="flex flex-wrap items-center gap-3 px-5 py-3">
+        <span className="w-24 shrink-0 text-sm text-text-muted">{text("shellExtendLabel", "연장(개월)")}</span>
+        <div className="w-20">
           <Input
             type="number"
             min={1}
             max={120}
             value={months}
             onChange={(event) => setMonths(Math.max(1, Math.min(120, Number(event.target.value) || 1)))}
-            className="mt-1 w-24"
             data-testid="project-extend-months"
           />
-        </label>
+        </div>
         <Button
           type="button"
           variant="soft"
@@ -206,22 +203,18 @@ export function ProjectActions({
         >
           {text("shellExtend", "기간 연장")}
         </Button>
+        <div className="ml-auto">
+          <Button type="button" variant="ghost" className="text-danger" loading={loading} loadingLabel={busy} onClick={() => setPending("delete")}>
+            {text("editRemove", "삭제")}
+          </Button>
+        </div>
       </div>
       {status === "EXPIRED" ? (
-        <p className="text-sm text-text-body">{text("shellResumeExpiredHint", "만료된 프로젝트는 기간을 연장한 뒤 재공개할 수 있습니다.")}</p>
+        <p className="px-5 py-3 text-sm text-text-body">{text("shellResumeExpiredHint", "만료된 프로젝트는 기간을 연장한 뒤 재공개할 수 있습니다.")}</p>
       ) : null}
-      <div className="flex flex-wrap items-end gap-2">
-        <label className="text-sm">
-          {text("shellDeleteConfirm", "삭제 확인(프로젝트명)")}
-          <Input value={confirmName} onChange={(event) => setConfirmName(event.target.value)} className="mt-1" placeholder={name} />
-        </label>
-        <Button type="button" variant="danger" loading={loading} loadingLabel={busy} onClick={() => setPending("delete")}>
-          {text("editRemove", "삭제")}
-        </Button>
-      </div>
       {message ? (
         <p
-          className={`text-sm ${isError ? "text-danger" : "text-text-body"}`}
+          className={`px-5 py-3 text-sm ${isError ? "text-danger" : "text-text-body"}`}
           role={isError ? "alert" : "status"}
           aria-live={isError ? "assertive" : "polite"}
           data-testid="project-action-message"

@@ -13,7 +13,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">{orgText("navAudit")}</h1>
+        <h1 className="text-xl font-bold tracking-tight">{orgText("navAudit")}</h1>
         <p className="mt-2 text-sm text-text-body">{orgText("auditBody")}</p>
       </div>
       <AuditLogsView page={page} basePath="/admin/audit-logs" />
