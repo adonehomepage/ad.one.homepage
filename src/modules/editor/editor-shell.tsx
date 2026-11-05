@@ -1729,7 +1729,7 @@ export function EditorShell({ projectId }: { projectId: string }) {
           <span className="justify-self-center" aria-hidden />
         )}
         <div className="flex items-center justify-end gap-2.5">
-          {!editing && data.template.code !== "oak-editorial" ? (
+          {!editing ? (
             <button
               type="button"
               className={`${toolClass} ${!popupEnabled ? "opacity-45" : ""}`}
@@ -1987,7 +1987,6 @@ export function EditorShell({ projectId }: { projectId: string }) {
           </DndContext>
           )}
           </div>
-          {data.template.code !== "oak-editorial" ? (
           <div className="rounded-[16px] border border-border bg-white p-3">
             <div className="flex items-start justify-between gap-2">
               <button type="button" className="min-w-0 flex-1 rounded-[14px] px-1 py-0.5 text-left hover:bg-primary-soft" onClick={() => setPopupFormOpen(true)}>
@@ -2017,7 +2016,6 @@ export function EditorShell({ projectId }: { projectId: string }) {
               />
             </div>
           </div>
-          ) : null}
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 text-xs font-medium text-text-muted">
             {isOriginSkin ? null : (() => {
               const selected = data.sections.find((section) => section.id === selectedId);

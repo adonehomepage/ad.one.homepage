@@ -541,6 +541,34 @@
 }
 .presale-foreon .pf-dock-panel {
   bottom: env(safe-area-inset-bottom, 0px);
+  /* 히어로·등록 폼에 가려져 있는 동안에는 오른쪽 밖에 둔다. 보이는 순간부터 들어온다. */
+  transform: translate3d(calc(100% + 36px), 0, 0);
+}
+
+.presale-foreon .pf-dock-panel:not(.invisible) {
+  animation:
+    pf-float-in 0.72s cubic-bezier(0.16, 1.08, 0.3, 1) both,
+    pf-float-bob 2.6s ease-in-out 0.72s infinite;
+}
+
+@keyframes pf-float-in {
+  from { transform: translate3d(calc(100% + 36px), 0, 0); }
+  to { transform: translate3d(0, 0, 0); }
+}
+
+@keyframes pf-float-bob {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -9px, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .presale-foreon .pf-dock-panel {
+    animation: none;
+  }
+
+  .presale-foreon .pf-dock-panel:not(.invisible) {
+    transform: none;
+  }
 }
 /* 푸터 — 직방 presale-footer와 같은 구성(상단 브랜드·전화 + 안내 한 덩어리) */
 .presale-foreon footer.pf-footer {
@@ -915,3 +943,126 @@ html:has(.presale-foreon) { scroll-behavior: smooth; }
 .presale-foreon .pf-scene-edit:focus-within .pf-scene-edit-badge { opacity: 1; }
 .presale-foreon[data-editing] .pf-copy { pointer-events: none; }
 .presale-foreon[data-editing] .pf-copy :is(a, button, label, input, [role="textbox"]) { pointer-events: auto; }
+
+/* 방문 팝업 — 다크 캔버스·인디고. 구성(배너·문구·혜택·버튼·전화·오늘 하루)은 유지 */
+.presale-foreon .pf-popup {
+  background: rgba(6, 6, 12, 0.72);
+  backdrop-filter: blur(8px);
+}
+.presale-foreon .pf-popup-card {
+  border-radius: 20px;
+  border-color: rgba(255, 255, 255, 0.1);
+  background: #14141c;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.5);
+}
+.presale-foreon .pf-popup-hero img {
+  display: block;
+}
+.presale-foreon .pf-popup-hero::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 72px;
+  background: linear-gradient(to top, #14141c, transparent);
+  pointer-events: none;
+}
+.presale-foreon .pf-popup-empty {
+  height: 7.5rem;
+  background: linear-gradient(160deg, #2a3158, #171722);
+  color: #a3afff;
+  letter-spacing: 0.08em;
+}
+.presale-foreon .pf-popup-close {
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(12, 12, 18, 0.45);
+  backdrop-filter: blur(8px);
+}
+.presale-foreon .pf-popup-body {
+  padding: 4px 22px 20px;
+}
+.presale-foreon .pf-popup-kicker {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #a3afff;
+}
+.presale-foreon .pf-popup-title {
+  margin-top: 8px;
+  font-size: 1.5rem;
+  font-weight: 500;
+  line-height: 1.28;
+  letter-spacing: -0.04em;
+  color: #ededf3;
+}
+.presale-foreon .pf-popup-title .text-primary {
+  color: #c5ceff;
+}
+.presale-foreon .pf-popup-copy {
+  margin-top: 12px;
+  font-size: 14px;
+  line-height: 1.65;
+  color: #c3c3cc;
+}
+.presale-foreon .pf-popup-perks {
+  margin-top: 16px;
+  gap: 10px;
+}
+.presale-foreon .pf-popup-perks li {
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: #d5d5de;
+}
+.presale-foreon .pf-popup-check {
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border: 1px solid rgba(163, 175, 255, 0.55);
+  background: transparent;
+  color: #c5ceff;
+  font-size: 11px;
+  font-weight: 600;
+}
+.presale-foreon .pf-popup-note {
+  margin-top: 14px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #9f9faf;
+}
+.presale-foreon .pf-popup-cta {
+  height: 48px;
+  margin-top: 18px;
+  border-radius: 999px;
+  background: #5266eb;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.presale-foreon .pf-popup-cta:hover {
+  background: #6576f0;
+}
+.presale-foreon .pf-popup-phone {
+  margin-top: 12px;
+  font-size: 13px;
+  color: #9f9faf;
+}
+.presale-foreon .pf-popup-phone :is(a, span) {
+  color: #ededf3;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.presale-foreon .pf-popup-dismiss {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 12px;
+  color: #9f9faf;
+}
+.presale-foreon .pf-popup-dismiss input {
+  accent-color: #5266eb;
+}

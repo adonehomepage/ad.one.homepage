@@ -759,6 +759,9 @@ export function LandingPage({
         previewDevice={previewDevice}
         onChange={onOakDataChange}
         onSectionsChange={onOakSectionsChange}
+        forcePopup={showPopup}
+        onClosePopup={onClosePopup}
+        onReturnToSettings={onReturnToSettings}
       />
     );
   }
@@ -2847,13 +2850,13 @@ function VisitPopup({
   const title = popup.title || chromeText(chrome, "shellPopupTitlePh", "관심고객으로 등록해 주세요");
   const phonePopup = layout === "mobile";
   return (
-    <div className={cn("fixed inset-0 z-50 flex justify-center overflow-hidden bg-black/60", phonePopup ? "items-end p-3" : "items-center p-4")} onClick={close}>
+    <div className={cn("pf-popup fixed inset-0 z-50 flex justify-center overflow-hidden bg-black/60", phonePopup ? "items-end p-3" : "items-center p-4")} onClick={close}>
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="visit-popup-title"
-        className={cn("flex w-full max-w-[23.8rem] max-h-[min(92dvh,40rem)] flex-col overflow-hidden rounded-[16px] border border-border bg-white [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden", phonePopup ? "my-3" : "my-6")}
+        className={cn("pf-popup-card flex w-full max-w-[23.8rem] max-h-[min(92dvh,52rem)] flex-col overflow-hidden rounded-[16px] border border-border bg-white [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden", phonePopup ? "my-3" : "my-6")}
         onClick={(event) => event.stopPropagation()}
       >
         {forced && onReturnToSettings ? (
@@ -2871,59 +2874,59 @@ function VisitPopup({
             </button>
           </div>
         ) : null}
-        <div className="relative">
+        <div className="pf-popup-hero relative">
           {popup.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={popup.imageUrl} alt={bannerAlt} className={cn("w-full object-cover", phonePopup ? "aspect-[16/10] max-h-[min(36vh,280px)]" : "aspect-square max-h-[min(42vh,360px)]")} />
           ) : (
-            <div className="flex h-24 items-center justify-center bg-primary-soft px-4 text-center text-sm text-primary">
+            <div className="pf-popup-empty flex h-24 items-center justify-center bg-primary-soft px-4 text-center text-sm text-primary">
               {String(popup.emptyImageLabel ?? "").trim() || chromeText(chrome, "shellPopupEmptyPh", "배너 이미지")}
             </div>
           )}
           <button
             ref={closeRef}
             type="button"
-            className="absolute right-3 top-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-black/45 text-white"
+            className="pf-popup-close absolute right-3 top-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-black/45 text-white"
             onClick={close}
             aria-label={closeLabel}
           >
             <span aria-hidden className="text-lg leading-none">×</span>
           </button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
-          {popup.banner?.trim() ? <p className="text-sm font-semibold text-primary">{popup.banner}</p> : null}
-          <h2 id="visit-popup-title" className="mt-2 whitespace-pre-wrap text-[1.35rem] font-medium leading-snug break-keep">
+        <div className="pf-popup-body min-h-0 flex-1 overflow-y-auto px-5 py-5">
+          {popup.banner?.trim() ? <p className="pf-popup-kicker text-sm font-semibold text-primary">{popup.banner}</p> : null}
+          <h2 id="visit-popup-title" className="pf-popup-title mt-2 whitespace-pre-wrap text-[1.35rem] font-medium leading-snug break-keep">
             <MarkedText text={title} />
           </h2>
           {popup.body?.trim() ? (
-            <p className="mt-3 whitespace-pre-wrap text-text-body">
+            <p className="pf-popup-copy mt-3 whitespace-pre-wrap text-text-body">
               <MarkedText text={popup.body} />
             </p>
           ) : null}
           {perks.length > 0 ? (
-            <ul className="mt-4 space-y-2">
+            <ul className="pf-popup-perks mt-4 space-y-2">
               {perks.map((perk, index) => (
                 <li key={`popup-perk-${index}`} className="flex items-start gap-2 text-sm text-text-body">
-                  <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-bold text-primary">✓</span>
+                  <span className="pf-popup-check mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-bold text-primary">✓</span>
                   <MarkedText text={perk} />
                 </li>
               ))}
             </ul>
           ) : null}
           {popup.disclaimer?.trim() ? (
-            <p className="mt-4 text-xs text-text-muted">
+            <p className="pf-popup-note mt-4 text-xs text-text-muted">
               <MarkedText text={popup.disclaimer} />
             </p>
           ) : null}
           <button
             type="button"
-            className="mt-5 inline-flex h-12 w-full items-center justify-center rounded-[14px] bg-primary text-[17px] font-semibold text-white"
+            className="pf-popup-cta mt-5 inline-flex h-12 w-full items-center justify-center rounded-[14px] bg-primary text-[17px] font-semibold text-white"
             onClick={(event) => register(event.currentTarget)}
           >
             {cta}
           </button>
           {phone ? (
-            <p className="mt-3 text-center text-sm text-text-body">
+            <p className="pf-popup-phone mt-3 text-center text-sm text-text-body">
               {String(popup.phonePrefix ?? "").trim() || chromeText(chrome, "shellPopupPhonePrefixPh", "바로 상담")}{" "}
               {live && phoneHref(phone) ? (
                 <a href={phoneHref(phone)} className="font-semibold text-primary">{phone}</a>
@@ -2932,7 +2935,7 @@ function VisitPopup({
               )}
             </p>
           ) : null}
-          <label className="mt-4 flex items-center gap-2 text-sm text-text-body">
+          <label className="pf-popup-dismiss mt-4 flex items-center gap-2 text-sm text-text-body">
             <input type="checkbox" checked={hideToday} onChange={(event) => setHideToday(event.target.checked)} />
             {popup.hideTodayLabel?.trim() || chromeText(chrome, "shellPopupHideTodayPh", "오늘 하루 보지 않기")}
           </label>

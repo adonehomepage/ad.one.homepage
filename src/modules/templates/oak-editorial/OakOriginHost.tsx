@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PageSection, PageSnapshot } from "@/types";
 import { PresaleImageUploadContext } from "@midday/components/PresaleImageUploadContext";
+import { OakEventPopup } from "./components/OakEventPopup";
 import { OakLandingView } from "./components/OakLandingView";
 import { OAK_DATA_KEY, readOakEditorialDataForSnapshot } from "./oak-data";
 import type { OakEditorialData } from "./types";
@@ -16,6 +17,9 @@ type Props = {
   previewDevice?: "desktop" | "tablet" | "mobile";
   onChange?: (data: OakEditorialData) => void;
   onSectionsChange?: (sections: PageSection[]) => void;
+  forcePopup?: boolean;
+  onClosePopup?: () => void;
+  onReturnToSettings?: () => void;
 };
 
 /**
@@ -30,6 +34,9 @@ export function OakOriginHost({
   previewDevice = "desktop",
   onChange,
   onSectionsChange,
+  forcePopup = false,
+  onClosePopup,
+  onReturnToSettings,
 }: Props) {
   const seedKey = useMemo(
     () =>
@@ -156,6 +163,16 @@ export function OakOriginHost({
           thirdPartyRequired={Boolean(snapshot.privacy?.thirdPartyProvisionEnabled)}
           onChange={editMode ? handleChange : undefined}
           onSectionContentChange={editMode ? handleSectionContentChange : undefined}
+        />
+        <OakEventPopup
+          popup={(snapshot.globalSettings.popup ?? {}) as { enabled?: boolean }}
+          slug={snapshot.publicSlug}
+          phoneFallback={snapshot.phone}
+          editMode={editMode}
+          forced={forcePopup}
+          live={leadLive}
+          onClose={onClosePopup}
+          onReturnToSettings={onReturnToSettings}
         />
       </div>
     </PresaleImageUploadContext.Provider>

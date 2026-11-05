@@ -457,16 +457,21 @@
   background: rgba(246, 241, 235, 0.08);
 }
 
-/* PC: 오른쪽 바깥에서 들어왔다가, 숨길 때는 다시 오른쪽으로 들어간다. */
+/* 오른쪽 바깥에서 들어온 뒤, 위아래로 조금씩 떠 있는다. */
+@keyframes oak-float-bob {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -9px, 0); }
+}
+
 .oak-editorial-root .floating {
   transform: translate3d(calc(100% + 32px), 0, 0);
   opacity: 0;
   pointer-events: none;
   visibility: hidden;
   transition:
-    transform 0.68s cubic-bezier(0.16, 1.08, 0.3, 1),
+    transform 0.72s cubic-bezier(0.16, 1.08, 0.3, 1),
     opacity 0.45s ease,
-    visibility 0s linear 0.68s;
+    visibility 0s linear 0.72s;
 }
 
 .oak-editorial-root .floating.is-in {
@@ -475,35 +480,36 @@
   pointer-events: auto;
   visibility: visible;
   transition:
-    transform 0.68s cubic-bezier(0.16, 1.08, 0.3, 1),
+    transform 0.72s cubic-bezier(0.16, 1.08, 0.3, 1),
     opacity 0.4s ease,
     visibility 0s linear 0s;
+  animation: oak-float-bob 2.6s ease-in-out 0.72s infinite;
 }
 
-@media (max-width: 700px) {
-  .oak-editorial-root:not([data-device="tablet"]) .floating {
-    transform: none;
-    opacity: 1;
-    visibility: visible;
-    pointer-events: auto;
-    transition: none;
-  }
-
-  .oak-editorial-root:not([data-device="tablet"]) .floating:not(.is-in) {
-    display: none;
-  }
+.oak-editorial-root.reduce-motion .floating,
+.oak-editorial-root.reduce-motion .floating.is-in {
+  transition: none;
+  animation: none;
 }
 
-.oak-editorial-root[data-device="mobile"] .floating {
+.oak-editorial-root.reduce-motion .floating.is-in {
   transform: none;
   opacity: 1;
   visibility: visible;
-  pointer-events: auto;
-  transition: none;
 }
 
-.oak-editorial-root[data-device="mobile"] .floating:not(.is-in) {
-  display: none;
+@media (prefers-reduced-motion: reduce) {
+  .oak-editorial-root .floating,
+  .oak-editorial-root .floating.is-in {
+    transition: none;
+    animation: none;
+  }
+
+  .oak-editorial-root .floating.is-in {
+    transform: none;
+    opacity: 1;
+    visibility: visible;
+  }
 }
 
 /* 특장점. 한 줄의 사진 높이를 맞춰 옆 빈칸이 없게 하고, 위는 넓음+좁음, 아래는 좁음+넓음으로 건다. */
@@ -621,4 +627,181 @@
 .oak-editorial-root .manifesto {
   max-width: none;
   margin-inline: 0;
+}
+
+/* 방문 팝업 — 린넨·잉크. 구성은 다른 템플릿과 같다 */
+.oak-popup {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(64, 58, 52, 0.62);
+  font-family: Pretendard, system-ui, sans-serif;
+  color: #403a34;
+}
+.oak-popup-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: min(400px, 100%);
+}
+.oak-popup-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 16px;
+  border: 1px solid #403a34;
+  border-radius: 999px;
+  background: #f6f1eb;
+  color: #403a34;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+.oak-popup-card {
+  width: 100%;
+  max-height: min(92dvh, 52rem);
+  overflow: auto;
+  background: #f6f1eb;
+  border: 1px solid #403a34;
+  scrollbar-width: none;
+}
+.oak-popup-card::-webkit-scrollbar { display: none; }
+.oak-popup-hero {
+  position: relative;
+  background: #403a34;
+}
+.oak-popup-hero img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  max-height: min(34vh, 300px);
+  object-fit: cover;
+}
+.oak-popup-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 7.5rem;
+  color: #f6f1eb;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.oak-popup-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(246, 241, 235, 0.7);
+  border-radius: 50%;
+  background: rgba(64, 58, 52, 0.35);
+  color: #f6f1eb;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+.oak-popup-body { padding: 22px 22px 18px; }
+.oak-popup-kicker {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #555;
+}
+.oak-popup-title {
+  margin: 10px 0 0;
+  font-size: 28px;
+  font-weight: 400;
+  line-height: 1.25;
+  letter-spacing: -0.045em;
+}
+.oak-popup-mark {
+  font-style: normal;
+  font-weight: 500;
+  box-shadow: inset 0 -1px 0 #403a34;
+}
+.oak-popup-copy {
+  margin: 14px 0 0;
+  font-size: 16px;
+  line-height: 1.65;
+  color: #555;
+}
+.oak-popup-perks {
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.oak-popup-perks li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 15px;
+  line-height: 1.45;
+}
+.oak-popup-check {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  border: 1px solid #403a34;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+}
+.oak-popup-note {
+  margin: 16px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #6b625a;
+}
+.oak-popup-cta {
+  width: 100%;
+  margin-top: 20px;
+  padding: 16px 20px;
+  border: 1px solid #403a34;
+  background: #403a34;
+  color: #f6f1eb;
+  font-size: 16px;
+  letter-spacing: -0.02em;
+  cursor: pointer;
+}
+.oak-popup-cta:hover { opacity: 0.88; }
+.oak-popup-phone {
+  margin: 14px 0 0;
+  text-align: center;
+  font-size: 13px;
+  color: #555;
+}
+.oak-popup-phone :is(a, b) {
+  color: #403a34;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  text-decoration: none;
+}
+.oak-popup-dismiss {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #403a34;
+  font-size: 13px;
+  cursor: pointer;
+}
+.oak-popup-dismiss input {
+  width: 16px;
+  height: 16px;
+  accent-color: #403a34;
 }
