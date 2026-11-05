@@ -15,6 +15,7 @@
     "db:push": "drizzle-kit push",
     "db:seed": "tsx --env-file=.env.local src/scripts/seed.ts",
     "db:seed-samples": "tsx --env-file=.env.local src/scripts/seed-sample-projects.ts",
+    "db:seed-activity": "tsx --env-file=.env.local src/scripts/seed-sample-activity.ts",
     "db:reset-local": "docker compose down && docker compose up -d"
   },
   "dependencies": {
