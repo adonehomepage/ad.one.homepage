@@ -11,7 +11,10 @@ import { safeNextPath } from "@/lib/auth/safe-next";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: orgText("navDashboard"),
+  title: {
+    default: orgText("navDashboard"),
+    template: `%s · ${brandLabel()}`,
+  },
   robots: { index: false, follow: false },
 };
 

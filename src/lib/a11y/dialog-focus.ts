@@ -18,8 +18,10 @@ export function useDialogFocusTrap({
 }) {
   const onEscapeRef = useRef(onEscape);
   const escapeEnabledRef = useRef(escapeEnabled);
-  onEscapeRef.current = onEscape;
-  escapeEnabledRef.current = escapeEnabled;
+  useEffect(() => {
+    onEscapeRef.current = onEscape;
+    escapeEnabledRef.current = escapeEnabled;
+  }, [onEscape, escapeEnabled]);
 
   useEffect(() => {
     if (!open) return;

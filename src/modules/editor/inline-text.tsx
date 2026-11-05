@@ -39,18 +39,33 @@ export function InlineText({
       suppressContentEditableWarning
       data-placeholder={placeholder}
       className={cn(
-        "inline-edit cursor-text whitespace-pre-wrap break-keep rounded-sm outline-none hover:bg-black/5 focus:bg-black/5 focus:ring-2 focus:ring-primary/40",
+        "inline-edit cursor-text whitespace-pre-wrap break-keep rounded-sm outline-none ring-0 hover:bg-black/5 focus:bg-black/5 focus:ring-0",
         className,
       )}
-      onFocus={() => {
+      onFocus={(event) => {
         focused.current = true;
+        // 포커스가 가장자리에 걸려 잘리지 않도록 필요한 만큼만 스크롤한다.
+        const node = event.currentTarget;
+        window.requestAnimationFrame(() => {
+          if (document.activeElement === node) node.scrollIntoView({ block: "nearest", inline: "nearest" });
+        });
       }}
       onBlur={(event) => {
         focused.current = false;
-        onCommit((event.currentTarget.textContent ?? "").replace(/\u00a0/g, " "));
+        let text = event.currentTarget.innerText.replace(/\u00a0/g, " ");
+        // 한 줄 입력칸 끝에 브라우저가 붙이는 줄바꿈은 버린다. 값 중간의 줄바꿈(두 줄 제목)은 그대로 둔다.
+        if (!multiline) text = text.replace(/\n+$/, "");
+        onCommit(text);
       }}
       onKeyDown={(event) => {
-        if (!multiline && event.key === "Enter") event.preventDefault();
+        if (event.key === "Escape") {
+          event.currentTarget.blur();
+          return;
+        }
+        if (!multiline && event.key === "Enter") {
+          event.preventDefault();
+          event.currentTarget.blur();
+        }
       }}
       onPaste={(event) => {
         event.preventDefault();
@@ -61,12 +76,31 @@ export function InlineText({
   );
 }
 
+/**
+ * 공개 화면용 강조 표기.
+ * `**굵게**` 는 굵은 글씨, `|강조|` 는 포인트 색 글씨로 보인다. 줄바꿈(\n)은 그대로 줄이 바뀐다.
+ */
 export function MarkedText({ text }: { text: string }) {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  const parts = text.split(/(\*\*[^*]+\*\*|\|[^|\n]+\|)/g);
   return parts.map((part, index) => {
     if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
-      return <strong key={index}>{part.slice(2, -2)}</strong>;
+      return (
+        <strong key={index} className="whitespace-pre-line">
+          {part.slice(2, -2)}
+        </strong>
+      );
     }
-    return <span key={index}>{part}</span>;
+    if (part.startsWith("|") && part.endsWith("|") && part.length > 2) {
+      return (
+        <span key={index} className="whitespace-pre-line font-semibold text-primary">
+          {part.slice(1, -1)}
+        </span>
+      );
+    }
+    return (
+      <span key={index} className="whitespace-pre-line">
+        {part}
+      </span>
+    );
   });
 }

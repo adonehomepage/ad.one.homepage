@@ -7,6 +7,8 @@ import { PdfDownload } from "@/app/admin/projects/[projectId]/analytics/pdf-down
 import { TrendChart } from "@/components/charts/trend-chart";
 import { cn } from "@/lib/cn";
 
+export const metadata = { title: "통계" };
+
 function analyticsText(settings: Record<string, unknown>, key: string, fallback: string) {
   return String(settings[key] ?? "").trim() || fallback;
 }

@@ -8,12 +8,16 @@ import { decryptPii, encryptPii, phoneLookupHash, sha256 } from "@/lib/crypto/pi
 import { displayPhone, isKoreanMobile, normalizePhone } from "@/lib/validation/phone";
 import { orgText } from "@/modules/admin/org-copy";
 import { writeAudit } from "@/modules/audit/service";
+import { formatLeadAnswers, LEAD_NAME_MAX, sanitizeLeadAnswers } from "@/modules/leads/answers";
 import { csvCell } from "@/modules/leads/csv";
+import { leadControllerBlockMessage } from "@/modules/leads/controller-gate";
+import { formFieldsForLeadSubmit } from "@/modules/leads/unit-type-fields";
 import { getPublishedBySlug } from "@/modules/publishing/service";
-import { getProject } from "@/modules/projects/service";
-import type { PageSnapshot } from "@/types";
+import { getDraft } from "@/modules/projects/service";
+import type { LeadFormField, PageSnapshot } from "@/types";
 
 export { csvCell } from "@/modules/leads/csv";
+export { formatLeadAnswers } from "@/modules/leads/answers";
 
 function chrome(settings: Record<string, unknown> | undefined, key: string, fallback: string) {
   return String(settings?.[key] ?? "").trim() || fallback;
@@ -74,18 +78,23 @@ export async function submitPublicLead(input: {
   }
   const snapshot = published.snapshot;
   const settings = snapshot.globalSettings;
+  const controllerBlock = leadControllerBlockMessage(snapshot.privacy.collectingControllerName, settings);
+  if (controllerBlock) {
+    throw new ApiError("FORBIDDEN", controllerBlock, 403);
+  }
   if (!input.consents.collection) {
     throw new ApiError("CONSENT_REQUIRED", chrome(settings, "formCollectionErrorPh", "개인정보 수집 및 이용에 동의해 주세요."));
   }
   if (snapshot.privacy.thirdPartyProvisionEnabled && !input.consents.thirdParty) {
     throw new ApiError("CONSENT_REQUIRED", chrome(settings, "formThirdErrorPh", "개인정보 제3자 제공에 동의해 주세요."));
   }
-  const name = input.name.trim();
+  const name = input.name.trim().slice(0, LEAD_NAME_MAX);
   if (!name) throw new ApiError("VALIDATION_ERROR", chrome(settings, "formNameErrorPh", "이름을 입력해 주세요."), 400, "name");
   if (!isKoreanMobile(input.phone)) {
     throw new ApiError("VALIDATION_ERROR", chrome(settings, "formPhoneErrorPh", "올바른 휴대전화 번호를 입력해 주세요."), 400, "phone");
   }
   const phone = normalizePhone(input.phone);
+  const answers = sanitizeLeadAnswers(formFieldsForLeadSubmit(snapshot), input.answers, settings);
   const lookup = phoneLookupHash(phone);
   const recent = await db
     .select({ id: leads.id })
@@ -109,8 +118,8 @@ export async function submitPublicLead(input: {
         name,
         phoneCiphertext: encryptPii(phone),
         phoneLookupHash: lookup,
-        inquiryText: typeof input.answers.inquiry === "string" ? input.answers.inquiry : null,
-        answersJson: input.answers,
+        inquiryText: typeof answers.inquiry === "string" ? answers.inquiry : null,
+        answersJson: answers,
         utmSource: input.utm?.utm_source ?? null,
         utmMedium: input.utm?.utm_medium ?? null,
         utmCampaign: input.utm?.utm_campaign ?? null,
@@ -176,9 +185,9 @@ export async function submitPublicLead(input: {
           projectName: snapshot.projectName,
           leadName: name,
           leadPhone: displayPhone(phone),
-          unitType: input.answers.unitType ?? null,
-          inquiry: input.answers.inquiry ?? null,
-          details: notificationDetails(snapshot.formSettings.fields, input.answers),
+          unitType: answers.unitType ?? null,
+          inquiry: answers.inquiry ?? null,
+          details: notificationDetails(snapshot.formSettings.fields, answers),
           submittedAt: created.submittedAt.toISOString(),
           purposeDisclaimer: orgText("leadPurposeDisclaimer"),
           to,
@@ -296,21 +305,9 @@ export async function addLeadNote(input: {
   return note;
 }
 
-export function formatLeadAnswers(answers: unknown) {
-  if (!answers || typeof answers !== "object" || Array.isArray(answers)) return [];
-  const labels: Record<string, string> = {
-    unitType: orgText("leadAnswerUnitType"),
-    inquiry: orgText("leadAnswerInquiry"),
-  };
-  return Object.entries(answers as Record<string, unknown>).flatMap(([key, value]) => {
-    const text = Array.isArray(value) ? value.map(String).filter(Boolean).join(", ") : String(value ?? "").trim();
-    if (!text) return [];
-    return [{ key, label: labels[key] ?? orgText("leadAnswerExtra"), text }];
-  });
-}
-
 export async function exportLeads(input: { organizationId: string; projectId: string; actorUserId: string }) {
-  await getProject(input.organizationId, input.projectId);
+  const { draft } = await getDraft(input.organizationId, input.projectId);
+  const fields = (draft?.formSettings as PageSnapshot["formSettings"] | undefined)?.fields as LeadFormField[] | undefined;
   const rows: Awaited<ReturnType<typeof listLeads>> = [];
   let page = 1;
   for (;;) {
@@ -341,7 +338,7 @@ export async function exportLeads(input: { organizationId: string; projectId: st
         row.name,
         row.phone ?? "",
         row.inquiryText ?? "",
-        formatLeadAnswers(row.answersJson).map((item) => `${item.label}: ${item.text}`).join(" / "),
+        formatLeadAnswers(row.answersJson, fields).map((item) => `${item.label}: ${item.text}`).join(" / "),
         row.utmSource ?? "",
       ].map(csvCell).join(","),
     )

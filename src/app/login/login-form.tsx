@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
@@ -54,7 +55,7 @@ function LoginFields({ brandName }: { brandName: string }) {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-surface px-4">
-      <form onSubmit={onSubmit} className="admin-compact w-full max-w-md space-y-4 ui-card">
+      <form onSubmit={onSubmit} className="w-full max-w-md space-y-4 ui-card">
         <div>
           <p className="text-sm font-medium text-primary">{brandName}</p>
           <h1 className="mt-2 text-2xl font-bold">{orgText("loginTitle")}</h1>
@@ -74,12 +75,12 @@ function LoginFields({ brandName }: { brandName: string }) {
         <Button type="submit" className="w-full" loading={loading} data-testid="login-submit">
           {orgText("login")}
         </Button>
-        <a href="/reset-password" className="block text-center text-sm text-text-body">
+        <Link href="/reset-password" className="block text-center text-sm text-text-body">
           {orgText("resetPassword")}
-        </a>
+        </Link>
         <p className="flex justify-center gap-4 text-sm text-text-muted">
-          <a href="/privacy">{orgText("privacyTitle")}</a>
-          <a href="/terms">{orgText("termsTitle")}</a>
+          <Link href="/privacy">{orgText("privacyTitle")}</Link>
+          <Link href="/terms">{orgText("termsTitle")}</Link>
         </p>
       </form>
     </div>

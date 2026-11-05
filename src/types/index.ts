@@ -1,7 +1,7 @@
 export type MemberRole = "SYSTEM_ADMIN" | "MEMBER";
 export type MemberStatus = "INVITED" | "ACTIVE" | "SUSPENDED" | "EXPIRED";
 export type ProjectStatus = "DRAFT" | "PUBLISHED" | "PAUSED" | "EXPIRED" | "PENDING_DELETION" | "DELETED";
-export type TemplateCode = "image-focus" | "video-ready" | "forest" | "info";
+export type TemplateCode = "foreon" | "info" | "midday" | "oak-editorial";
 export type SectionType =
   | "hero"
   | "overview"
@@ -9,6 +9,7 @@ export type SectionType =
   | "premium"
   | "gallery"
   | "floorplan"
+  | "faq"
   | "directions"
   | "lead_form"
   | "legal";

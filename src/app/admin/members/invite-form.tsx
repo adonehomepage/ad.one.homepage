@@ -65,7 +65,7 @@ export function InviteForm() {
         </select>
       </Field>
       <div className="flex items-end">
-        <Button type="submit" loading={loading} data-testid="invite-submit">
+        <Button type="submit" loading={loading} data-testid="invite-submit" className="w-full md:w-auto">
           {orgText("invite")}
         </Button>
       </div>

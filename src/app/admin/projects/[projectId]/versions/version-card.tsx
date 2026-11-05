@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { LandingPage } from "@/modules/templates/render/landing-page";
 import { RestoreButton } from "@/app/admin/projects/[projectId]/versions/restore-button";
+import { clampLaunchExcludedSnapshot } from "@/modules/sections/duplicate";
 import type { PageSnapshot } from "@/types";
 
 export function VersionCard({
@@ -44,7 +45,7 @@ export function VersionCard({
       </div>
       {open ? (
         <div className="h-[32rem] overflow-auto rounded-[16px] border border-border bg-white">
-          <LandingPage snapshot={snapshot} mode="preview" />
+          <LandingPage snapshot={clampLaunchExcludedSnapshot(snapshot)} mode="preview" />
         </div>
       ) : null}
     </div>

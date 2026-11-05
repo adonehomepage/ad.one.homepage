@@ -14,7 +14,8 @@ test("로그인 후 홈페이지를 만들고 발행·비공개·재공개한다
   await page.goto("/admin");
 
   await page.goto("/admin/projects/new");
-  await page.getByTestId("template-image-focus").check({ force: true });
+  await page.getByTestId("template-foreon").locator("xpath=ancestor::button[1]").click();
+  await expect(page.getByTestId("template-foreon")).toBeChecked();
   await page.getByRole("button", { name: "제작하기" }).click();
   await page.getByTestId("project-name").fill(`E2E 현장 ${slug}`);
   await page.getByTestId("project-slug").fill("admin");
@@ -29,7 +30,7 @@ test("로그인 후 홈페이지를 만들고 발행·비공개·재공개한다
   await expect(page.getByTestId("publish-button")).toBeVisible();
   await page.getByTestId("publish-button").click();
   await page.getByRole("button", { name: "이 내용으로 발행" }).click();
-  await expect(page.getByText("발행됨")).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("status").filter({ hasText: "발행됨" })).toBeVisible({ timeout: 20_000 });
 
   await page.goto(`/${slug}`);
   await expect(page.getByRole("heading", { level: 1 })).toContainText("E2E 현장");

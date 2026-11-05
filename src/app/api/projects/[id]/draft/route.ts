@@ -6,6 +6,9 @@ import { ApiError } from "@/lib/errors";
 import { draftPatchSchema } from "@/lib/validation/draft";
 import { orgText } from "@/modules/admin/org-copy";
 import { getDraft, mapSectionRow, saveDraft } from "@/modules/projects/service";
+import { clampLaunchExcludedSection } from "@/modules/sections/duplicate";
+import { normalizeFormSettings, normalizeGlobalSettings, normalizePrivacySettings, normalizeSectionContent } from "@/modules/templates/definitions";
+import type { PageSnapshot } from "@/types";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -13,11 +16,28 @@ export async function GET(_: Request, { params }: Params) {
   const { id } = await params;
   return withStaff(async (ctx) => {
     const data = await getDraft(ctx.organization.id, id);
+    const draft = data.draft
+      ? {
+          ...data.draft,
+          globalSettings: normalizeGlobalSettings((data.draft.globalSettings ?? {}) as Record<string, unknown>),
+          formSettings: normalizeFormSettings(data.draft.formSettings as PageSnapshot["formSettings"]),
+          privacySettings: normalizePrivacySettings(data.draft.privacySettings as PageSnapshot["privacy"]),
+        }
+      : data.draft;
     return {
       project: data.project,
       template: data.template,
-      draft: data.draft,
-      sections: data.sections.map(mapSectionRow).filter((section) => (section.sectionType as string) !== "faq"),
+      draft,
+      // 에디터 초기 로드: FAQ·gallery 숨김 + 배열 상한 (oak-editorial FAQ는 본문이므로 유지).
+      sections: data.sections.map((row) => {
+        const clamped = clampLaunchExcludedSection(mapSectionRow(row), {
+          templateCode: String(data.template.code),
+        });
+        return {
+          ...clamped,
+          content: normalizeSectionContent(clamped.sectionType, clamped.content ?? {}),
+        };
+      }),
     };
   });
 }

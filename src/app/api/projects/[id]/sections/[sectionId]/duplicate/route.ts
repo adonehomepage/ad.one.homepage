@@ -2,7 +2,7 @@ import { z } from "zod";
 import { withStaff } from "@/lib/api/http";
 import { parseJsonBody } from "@/lib/api/parse";
 import { getDraft, mapSectionRow, saveDraft } from "@/modules/projects/service";
-import { duplicateSection } from "@/modules/sections/duplicate";
+import { clampLaunchExcludedSection, duplicateSection } from "@/modules/sections/duplicate";
 
 type Params = { params: Promise<{ id: string; sectionId: string }> };
 
@@ -15,7 +15,7 @@ export async function POST(request: Request, { params }: Params) {
       sections: data.sections.map(mapSectionRow),
       selectedSectionId: sectionId,
       projectId: id,
-    });
+    }).map(clampLaunchExcludedSection);
     const result = await saveDraft({
       organizationId: ctx.organization.id,
       projectId: id,

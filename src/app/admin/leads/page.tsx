@@ -7,7 +7,10 @@ import { assertLeadAdminFeature } from "@/lib/feature-guard";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
+import { featureFlags } from "@/lib/feature-flags";
 import { orgText } from "@/modules/admin/org-copy";
+
+export const metadata = { title: "관심고객" };
 
 const LEAD_PAGE_SIZE = 50;
 
@@ -52,7 +55,10 @@ export default async function AllLeadsPage({
         </Button>
       </form>
       {items.length === 0 ? (
-        <EmptyState title={orgText("leadsEmptyTitle")} description={orgText("leadsEmpty")} />
+        <EmptyState
+          title={orgText("leadsEmptyTitle")}
+          description={featureFlags().leadCollection ? orgText("leadsEmpty") : orgText("leadCollectionDisabled")}
+        />
       ) : (
         <LeadTable items={items} />
       )}

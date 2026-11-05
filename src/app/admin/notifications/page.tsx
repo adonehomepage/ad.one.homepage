@@ -11,6 +11,8 @@ import { RetryButton } from "@/app/admin/notifications/retry-button";
 import { orgText } from "@/modules/admin/org-copy";
 import { cn } from "@/lib/cn";
 
+export const metadata = { title: "알림 로그" };
+
 const PAGE_SIZE = 50;
 
 const STATUS_FILTERS = [

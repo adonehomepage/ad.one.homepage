@@ -8,6 +8,8 @@ import { MemberActions } from "@/app/admin/members/member-actions";
 import { formatSeoul } from "@/lib/datetime";
 import { orgText } from "@/modules/admin/org-copy";
 
+export const metadata = { title: "직원 계정" };
+
 export default async function MembersPage() {
   const ctx = await getAuthContext();
   if (!ctx) redirect("/login");

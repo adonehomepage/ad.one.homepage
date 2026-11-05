@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DialogBody, DialogFooter, DialogHeader, DialogShell } from "@/components/ui/dialog-shell";
@@ -32,16 +32,18 @@ export function CheckpointDialog({
   onRestore: (checkpoint: DraftCheckpoint) => void;
   onClose: () => void;
 }) {
-  const [items, setItems] = useState<DraftCheckpoint[]>([]);
+  const [items, setItems] = useState(() => listCheckpoints(projectId));
+  const [loadedProjectId, setLoadedProjectId] = useState(projectId);
   const [label, setLabel] = useState("");
   const [notice, setNotice] = useState("");
   const [pending, setPending] = useState<{ type: "restore" | "delete"; item: DraftCheckpoint } | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
+  if (loadedProjectId !== projectId) {
+    setLoadedProjectId(projectId);
     setItems(listCheckpoints(projectId));
-  }, [projectId]);
+  }
 
   useDialogFocusTrap({
     open: true,
@@ -104,10 +106,10 @@ export function CheckpointDialog({
                 <p className="text-sm font-semibold">{item.label}</p>
                 <p className="mt-1 text-xs text-text-muted">{new Date(item.savedAt).toLocaleString("ko-KR")}</p>
                 <div className="mt-3 flex gap-2">
-                  <Button type="button" variant="soft" className="h-9 px-3 text-sm" onClick={() => setPending({ type: "restore", item })}>
+                  <Button type="button" variant="soft" onClick={() => setPending({ type: "restore", item })}>
                     {shellText(globalSettings, "shellCheckpointRestoreButton", "이 내용으로 되돌리기")}
                   </Button>
-                  <Button type="button" variant="ghost" className="h-9 px-3 text-sm" onClick={() => setPending({ type: "delete", item })}>
+                  <Button type="button" variant="ghost" onClick={() => setPending({ type: "delete", item })}>
                     {shellText(globalSettings, "editRemove", "삭제")}
                   </Button>
                 </div>

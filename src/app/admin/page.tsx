@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { leads, notificationJobs, projects } from "@/lib/db/schema";
 import { getAuthContext } from "@/lib/auth/session";
@@ -21,9 +21,11 @@ export default async function DashboardPage() {
 
   const [published] = await db.select({ value: sql<number>`count(*)` }).from(projects).where(and(eq(projects.organizationId, orgId), eq(projects.status, "PUBLISHED")));
   const [drafts] = await db.select({ value: sql<number>`count(*)` }).from(projects).where(and(eq(projects.organizationId, orgId), eq(projects.status, "DRAFT")));
-  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const [newLeads] = flags.leadAdmin
-    ? await db.select({ value: sql<number>`count(*)` }).from(leads).where(and(eq(leads.organizationId, orgId), gte(leads.submittedAt, weekAgo)))
+    ? await db
+        .select({ value: sql<number>`count(*)` })
+        .from(leads)
+        .where(and(eq(leads.organizationId, orgId), sql`${leads.submittedAt} >= now() - interval '7 days'`))
     : [{ value: 0 }];
   const [failed] = await db.select({ value: sql<number>`count(*)` }).from(notificationJobs).where(and(eq(notificationJobs.organizationId, orgId), eq(notificationJobs.status, "FAILED")));
   const [expiring] = await db.select({ value: sql<number>`count(*)` }).from(projects).where(sql`${projects.organizationId} = ${orgId} and ${projects.status} = 'PUBLISHED' and ${projects.expiresAt} <= now() + interval '7 days'`);
@@ -31,7 +33,11 @@ export default async function DashboardPage() {
   const recentLeads = flags.leadAdmin
     ? await db.select().from(leads).where(eq(leads.organizationId, orgId)).orderBy(desc(leads.submittedAt)).limit(5)
     : [];
-  const trend = await getOrganizationTrend(orgId, weekAgo, new Date());
+  const nowRows = await db.execute<{ now: string | Date }>(sql`select now() as now`);
+  const rawNow = Array.isArray(nowRows) ? nowRows[0]?.now : (nowRows as { rows?: Array<{ now: string | Date }> }).rows?.[0]?.now;
+  const trendTo = rawNow instanceof Date ? rawNow : new Date(String(rawNow ?? 0));
+  const trendFrom = new Date(trendTo.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const trend = await getOrganizationTrend(orgId, trendFrom, trendTo);
 
   const cards = [
     { label: orgText("cardPublished"), value: Number(published?.value ?? 0), href: "/admin/projects?status=PUBLISHED" },
@@ -94,7 +100,10 @@ export default async function DashboardPage() {
             <h2 className="font-semibold">{orgText("recentLeads")}</h2>
             {recentLeads.length === 0 ? (
               <div className="mt-4">
-                <EmptyState title={orgText("leadsEmptyTitle")} description={orgText("recentLeadsEmpty")} />
+                <EmptyState
+                  title={orgText("leadsEmptyTitle")}
+                  description={flags.leadCollection ? orgText("recentLeadsEmpty") : orgText("leadCollectionDisabled")}
+                />
               </div>
             ) : (
               <ul className="mt-4 space-y-3">

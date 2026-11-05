@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Field, Input } from "@/components/ui/input";
 import { Badge, badgeLabels } from "@/components/ui/badge";
 import { formatPhoneInput } from "@/lib/validation/phone";
+import { displayChrome } from "@/modules/admin/org-copy";
 
 type Recipient = {
   id: string;
@@ -28,7 +29,7 @@ export default function RecipientsPage({ params }: { params: Promise<{ projectId
   const [disabling, setDisabling] = useState(false);
   const [phone, setPhone] = useState("");
   const [settings, setSettings] = useState<Record<string, unknown>>({});
-  const text = (key: string, fallback: string) => String(settings[key] ?? "").trim() || fallback;
+  const text = (key: string, fallback: string) => displayChrome(String(settings[key] ?? ""), fallback);
 
   useEffect(() => {
     params.then(async ({ projectId: id }) => {
@@ -112,7 +113,7 @@ export default function RecipientsPage({ params }: { params: Promise<{ projectId
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold tracking-tight">{text("shellRecipients", "광고주 수신자")}</h1>
+        <h1 className="text-xl font-bold tracking-tight">{text("shellRecipients", "알림 수신자")}</h1>
         <p className="mt-2 text-sm text-text-body">
           {text("shellRecipientsBody", "활성 수신자는 최대 5명입니다. 인증되지 않은 연락처에는 관심고객 개인정보를 보내지 않습니다.")}
         </p>

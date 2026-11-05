@@ -66,7 +66,7 @@ export const PROJECT_STATUSES = [
   "DELETED",
 ] as const;
 
-export const TEMPLATE_CODES = ["image-focus", "video-ready", "forest", "info"] as const;
+export const TEMPLATE_CODES = ["foreon", "info", "midday", "oak-editorial"] as const;
 
 export const SECTION_TYPES = [
   "hero",
@@ -75,6 +75,7 @@ export const SECTION_TYPES = [
   "premium",
   "gallery",
   "floorplan",
+  "faq",
   "directions",
   "lead_form",
   "legal",

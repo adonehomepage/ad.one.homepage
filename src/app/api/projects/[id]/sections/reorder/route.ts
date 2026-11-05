@@ -2,7 +2,7 @@ import { z } from "zod";
 import { withStaff } from "@/lib/api/http";
 import { parseJsonBody } from "@/lib/api/parse";
 import { getDraft, mapSectionRow, saveDraft } from "@/modules/projects/service";
-import { reorderSections } from "@/modules/sections/duplicate";
+import { clampLaunchExcludedSection, reorderSections } from "@/modules/sections/duplicate";
 import { ApiError } from "@/lib/errors";
 import { orgText } from "@/modules/admin/org-copy";
 
@@ -24,7 +24,7 @@ export async function POST(request: Request, { params }: Params) {
     }
     const data = await getDraft(ctx.organization.id, id);
     const sections = data.sections.map(mapSectionRow);
-    const next = reorderSections(sections, body.orderedIds);
+    const next = reorderSections(sections, body.orderedIds).map(clampLaunchExcludedSection);
     await saveDraft({
       organizationId: ctx.organization.id,
       projectId: id,

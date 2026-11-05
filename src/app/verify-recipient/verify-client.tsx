@@ -8,18 +8,17 @@ import { orgText } from "@/modules/admin/org-copy";
 export function VerifyRecipientClient({ brandName }: { brandName: string }) {
   const params = useSearchParams();
   const token = params.get("token") ?? "";
-  const [status, setStatus] = useState<"loading" | "ok" | "fail">("loading");
-  const [message, setMessage] = useState("");
+  const missingToken = !token;
+  const [status, setStatus] = useState<"loading" | "ok" | "fail">(missingToken ? "fail" : "loading");
+  const [message, setMessage] = useState(missingToken ? orgText("recipientVerifyInvalid") : "");
 
   useEffect(() => {
-    if (!token) {
-      setStatus("fail");
-      setMessage(orgText("recipientVerifyInvalid"));
-      return;
-    }
+    if (!token) return;
+    let cancelled = false;
     void fetch(`/api/public/recipients/verify?token=${encodeURIComponent(token)}`)
       .then(async (res) => {
         const json = await res.json().catch(() => ({}));
+        if (cancelled) return;
         if (!res.ok) {
           setStatus("fail");
           setMessage(json.message ?? orgText("recipientVerifyInvalid"));
@@ -29,9 +28,13 @@ export function VerifyRecipientClient({ brandName }: { brandName: string }) {
         setMessage(json.message ?? orgText("recipientVerified"));
       })
       .catch(() => {
+        if (cancelled) return;
         setStatus("fail");
         setMessage(orgText("recipientVerifyInvalid"));
       });
+    return () => {
+      cancelled = true;
+    };
   }, [token]);
 
   return (

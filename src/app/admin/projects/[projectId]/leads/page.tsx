@@ -9,11 +9,14 @@ import { assertLeadAdminFeature } from "@/lib/feature-guard";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
+import { displayChrome } from "@/modules/admin/org-copy";
+
+export const metadata = { title: "관심고객" };
 
 const LEAD_PAGE_SIZE = 50;
 
 function leadText(settings: Record<string, unknown>, key: string, fallback: string) {
-  return String(settings[key] ?? "").trim() || fallback;
+  return displayChrome(String(settings[key] ?? ""), fallback);
 }
 
 function projectLeadsQuery(projectId: string, params: { q?: string; page?: number }) {

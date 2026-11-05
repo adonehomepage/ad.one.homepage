@@ -1,0 +1,441 @@
+/*
+ * Adit 랜딩 마크업 ↔ midday(프리미엄 화보형) 토큰 브릿지.
+ * 원본 midday-landing.css 위에 우리 헤더/히어로/섹션만 맞춘다.
+ */
+
+.midday-landing {
+  color-scheme: light;
+  /* 에디터 프레임 안에서 100dvh가 폭주하지 않게 */
+  --lc-gnb-h: 72px;
+}
+
+.midday-landing[data-editing] .lc-gnb {
+  position: relative !important;
+  top: auto !important;
+}
+
+/* ── GNB: Tailwind hidden/flex와 원본 CSS 충돌 정리 ── */
+.midday-landing .lc-gnb {
+  height: auto;
+  min-height: var(--lc-gnb-h);
+  overflow: visible;
+}
+
+.midday-landing .lc-gnb__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px 24px;
+  min-height: var(--lc-gnb-h);
+  padding-block: 10px;
+}
+
+.midday-landing .lc-gnb__end {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px 20px;
+  min-width: 0;
+  flex: 1 1 auto;
+  margin-left: auto;
+}
+
+.midday-landing .lc-gnb__nav,
+.midday-landing .lc-gnb__nav--desktop {
+  display: flex !important;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 18px !important;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.midday-landing .lc-gnb__nav::-webkit-scrollbar {
+  display: none;
+}
+
+.midday-landing .lc-gnb__nav a {
+  position: relative;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 4px;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--lc-ink);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.midday-landing .lc-gnb__nav a + a {
+  margin-left: 14px;
+}
+
+.midday-landing .lc-gnb__nav a::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 6px;
+  height: 2px;
+  background: var(--lc-clay);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.2s ease;
+}
+
+.midday-landing .lc-gnb__nav a:hover::after,
+.midday-landing .lc-gnb__nav a.is-active::after {
+  transform: scaleX(1);
+}
+
+.midday-landing .lc-gnb__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px 14px;
+  flex-shrink: 0;
+}
+
+.midday-landing .lc-gnb__phone {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  line-height: 1.2;
+}
+
+.midday-landing .lc-gnb__phone-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--lc-muted);
+}
+
+.midday-landing .lc-gnb__cta {
+  text-decoration: none;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.midday-landing .lc-gnb__cta--fill {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  background: var(--lc-ink) !important;
+  border-color: var(--lc-ink) !important;
+}
+
+.midday-landing .lc-gnb__cta--fill:hover {
+  background: #1a2436 !important;
+}
+
+.midday-landing .lc-gnb__cta-arrow {
+  background: #fff !important;
+  color: var(--lc-ink) !important;
+  -webkit-text-fill-color: var(--lc-ink) !important;
+}
+
+.midday-landing .lc-gnb__nav {
+  align-self: center;
+}
+
+/* 로고·현장명 영역 */
+.midday-landing .lc-gnb__inner > .flex {
+  flex-shrink: 0;
+  max-width: min(280px, 34%);
+}
+
+.midday-landing .lc-gnb img {
+  border-color: var(--lc-line) !important;
+}
+
+/* 좁은 미리보기: 내비 숨김은 마크업에서, 액션만 유지 */
+.midday-landing[data-narrow="true"] .lc-gnb__inner {
+  gap: 12px;
+}
+
+.midday-landing[data-narrow="true"] .lc-gnb__end {
+  flex: 0 0 auto;
+}
+
+/* ── 히어로: 에디터 프레임에서 과도한 100dvh 완화 ── */
+.midday-landing[data-editing] .lc-hero,
+.midday-landing.presale-preview-device--tablet .lc-hero,
+.midday-landing.presale-preview-device--mobile .lc-hero,
+.midday-landing[data-narrow="true"] .lc-hero {
+  min-height: min(720px, 92svh);
+}
+
+.midday-landing .lc-hero {
+  /* display:contents 자식이 에디터 오버레이와 충돌하지 않게 */
+  isolation: isolate;
+}
+
+.midday-landing .lc-hero .pf-scene-edit {
+  z-index: 3;
+}
+
+.midday-landing .lc-hero .pf-scene-fallback {
+  width: 100%;
+  height: 100%;
+  background:
+    linear-gradient(145deg, rgba(188, 120, 95, 0.28), transparent 55%),
+    #1a1f2a;
+}
+
+.midday-landing .lc-trust-tag {
+  background: rgba(255, 255, 255, 0.14);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  backdrop-filter: blur(16px) saturate(1.2);
+}
+
+.midday-landing .lc-trust-tag .pf-edit-x {
+  color: #fff;
+}
+
+/* 히어로가 color:#fff 를 물려 흰 필 CTA 글자가 사라지던 문제 */
+.midday-landing .lc-hero .lc-pill--hero-cta,
+.midday-landing .lc-hero .lc-pill--light,
+.midday-landing .lc-hero .lc-pill--hero-cta .inline-edit,
+.midday-landing .lc-hero .lc-pill--light .inline-edit {
+  color: var(--lc-ink) !important;
+  -webkit-text-fill-color: var(--lc-ink) !important;
+  caret-color: var(--lc-ink) !important;
+  text-shadow: none !important;
+}
+
+.midday-landing .lc-hero .lc-pill--hero-cta .lc-pill__arrow {
+  color: var(--lc-ink) !important;
+}
+
+.midday-landing .lc-gnb__phone {
+  justify-content: center;
+}
+
+.midday-landing .lc-gnb__actions {
+  align-items: center;
+}
+
+/* 로고 힌트가 GNB 높이를 밀지 않게 */
+.midday-landing .lc-gnb .pf-logo-hint {
+  display: none;
+}
+
+/* 좁은 화면·미리보기 히어로 스택 */
+.midday-landing.presale-preview-device--tablet .lc-hero__head,
+.midday-landing.presale-preview-device--mobile .lc-hero__head,
+.midday-landing[data-narrow="true"] .lc-hero__head {
+  grid-template-columns: 1fr;
+}
+
+.midday-landing.presale-preview-device--tablet .lc-hero__slogan-slot,
+.midday-landing.presale-preview-device--mobile .lc-hero__slogan-slot,
+.midday-landing[data-narrow="true"] .lc-hero__slogan-slot {
+  justify-self: start;
+  margin-top: 8px;
+}
+
+.midday-landing.presale-preview-device--tablet .lc-hero__slogan,
+.midday-landing.presale-preview-device--mobile .lc-hero__slogan,
+.midday-landing[data-narrow="true"] .lc-hero__slogan {
+  text-align: left;
+  width: auto;
+}
+
+.midday-landing.presale-preview-device--mobile .lc-hero__bottom,
+.midday-landing[data-narrow="true"] .lc-hero__bottom {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.midday-landing.presale-preview-device--mobile .lc-hero__bottom .lc-pill,
+.midday-landing[data-narrow="true"] .lc-hero__bottom .lc-pill {
+  width: 100%;
+}
+
+.midday-landing.presale-preview-device--mobile .lc-trust-tags,
+.midday-landing[data-narrow="true"] .lc-trust-tags {
+  max-width: none;
+}
+
+.midday-landing.presale-preview-device--mobile .lc-hero__title,
+.midday-landing[data-narrow="true"] .lc-hero__title {
+  font-size: clamp(32px, 9vw, 44px);
+  max-width: none;
+}
+
+/* ── 공통 토큰 치환 ── */
+.midday-landing .bg-primary {
+  background-color: var(--lc-clay) !important;
+}
+.midday-landing .text-primary {
+  color: var(--lc-clay) !important;
+}
+.midday-landing .bg-primary-soft {
+  background-color: rgba(188, 120, 95, 0.14) !important;
+}
+.midday-landing .border-primary {
+  border-color: var(--lc-clay) !important;
+}
+.midday-landing .ring-primary {
+  --tw-ring-color: var(--lc-clay);
+}
+.midday-landing .text-text-primary {
+  color: var(--lc-ink) !important;
+}
+.midday-landing .text-text-body {
+  color: var(--lc-muted) !important;
+}
+.midday-landing .text-text-muted {
+  color: var(--lc-muted) !important;
+}
+.midday-landing .border-border,
+.midday-landing .border-border\/80 {
+  border-color: var(--lc-line) !important;
+}
+.midday-landing .bg-white {
+  background-color: var(--lc-paper) !important;
+}
+.midday-landing .bg-surface {
+  background-color: var(--lc-mist) !important;
+}
+
+/* 섹션 밴드 — ContactDock 등 non-section 제외하고 section[id]만 */
+.midday-landing > section[id] {
+  scroll-margin-top: calc(var(--lc-gnb-h, 72px) + 12px);
+  background: var(--lc-paper);
+  color: var(--lc-ink);
+}
+
+.midday-landing > section[id]:nth-of-type(even) {
+  background: var(--lc-cloud);
+}
+
+/* 평면 = navy */
+.midday-landing > section[id]:has([data-section-skin="floorplan"]) {
+  background: var(--lc-navy);
+  color: #fff;
+}
+
+.midday-landing [data-section-skin="floorplan"] {
+  color: #fff;
+}
+
+.midday-landing [data-section-skin="floorplan"] .text-text-body,
+.midday-landing [data-section-skin="floorplan"] .text-text-muted {
+  color: rgba(255, 255, 255, 0.72) !important;
+}
+
+.midday-landing [data-section-skin="floorplan"] .border-border {
+  border-color: var(--lc-line-dark) !important;
+}
+
+.midday-landing [data-section-skin="floorplan"] .bg-white,
+.midday-landing [data-section-skin="floorplan"] .ui-card,
+.midday-landing [data-section-skin="floorplan"] .bg-surface {
+  background: #fff !important;
+  color: var(--lc-ink);
+}
+
+.midday-landing [data-section-skin="floorplan"] .text-primary {
+  color: var(--lc-clay) !important;
+}
+
+/* overview 팩트 · premium 번호 카드 */
+.midday-landing .pi-facts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--lc-line);
+  border-bottom: 1px solid var(--lc-line);
+}
+
+.midday-landing .pi-facts-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 1.1rem 1rem;
+  border-top: 1px solid var(--lc-line);
+}
+
+.midday-landing .pi-facts-grid > div:nth-child(odd) {
+  border-right: 1px solid var(--lc-line);
+}
+
+.midday-landing .pi-fact-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--lc-muted);
+}
+
+.midday-landing .pi-fact-value {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--lc-ink);
+}
+
+.midday-landing .pi-premium-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 2rem;
+}
+
+.midday-landing .pi-premium-grid > article {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 1.25rem 1.35rem;
+  border: 1px solid var(--lc-line);
+  border-radius: var(--lc-radius-card);
+  background: var(--lc-paper);
+}
+
+.midday-landing .pi-premium-num {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--lc-clay);
+}
+
+@media (max-width: 767px) {
+  .midday-landing .pi-facts-grid,
+  .midday-landing .pi-premium-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .midday-landing .pi-facts-grid > div:nth-child(odd) {
+    border-right: none;
+  }
+}
+
+.midday-landing .pi-premium-grid[data-narrow="true"] {
+  grid-template-columns: 1fr;
+}
+
+/* 플로팅 독 — 라이트 */
+.midday-landing .pf-dock {
+  background: rgba(246, 246, 243, 0.94);
+  color: var(--lc-ink);
+  border-color: var(--lc-line);
+}
+
+/* 섹션 제목 무게 midday에 가깝게 */
+.midday-landing > section[id] h2 {
+  font-size: clamp(28px, 3.6vw, 44px);
+  font-weight: 720;
+  letter-spacing: -0.04em;
+  color: var(--lc-ink);
+}
+
+.midday-landing > section[id]:has([data-section-skin="floorplan"]) h2 {
+  color: #fff;
+}

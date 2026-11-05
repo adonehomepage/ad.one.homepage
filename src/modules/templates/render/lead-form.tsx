@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import type { PageSection, PageSnapshot } from "@/types";
-import { floorplanSpecs, sectionEyebrowText } from "@/modules/templates/definitions";
+import { floorplanSpecs, INTEREST_FLOORPLAN_SPEC_LINES, isPlaceholderPartyName, LEAD_FORM_PERK_MAX, sectionEyebrowText } from "@/modules/templates/definitions";
 import { formatPhoneInput, isKoreanMobile } from "@/lib/validation/phone";
 import { trackPublicEvent } from "@/modules/templates/render/tracker";
 import { chromeText, useCanvasEdit, useEditorChrome, type CanvasEdit } from "@/modules/editor/edit-context";
@@ -16,13 +16,19 @@ export function LeadForm({
   disabled,
   variant = "section",
   narrow = false,
+  twoColumn,
 }: {
   snapshot: PageSnapshot;
   section: PageSection;
   disabled?: boolean;
   variant?: "section" | "popup";
   narrow?: boolean;
+  /** 태블릿 이상에서 혜택|폼 2열. 미지정 시 desktop(!narrow)만 2열. */
+  twoColumn?: boolean;
 }) {
+  const split = twoColumn ?? !narrow;
+  // 모바일은 창이 아니라 기기 폭. sm:/md: 는 편집 틀 안의 모니터 폭을 따른다.
+  const compact = narrow && twoColumn !== true;
   const [status, setStatus] = useState<"idle" | "ok" | "error">("idle");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -132,15 +138,15 @@ export function LeadForm({
     );
   }
   const [privacyOpen, setPrivacyOpen] = useState(false);
-  const perks = ((section.content.perks as Array<{ text?: string } | string> | undefined) ?? []).map((item) =>
-    typeof item === "string" ? item : String(item.text ?? ""),
-  );
+  const perks = ((section.content.perks as Array<{ text?: string } | string> | undefined) ?? [])
+    .map((item) => (typeof item === "string" ? item : String(item.text ?? "")))
+    .slice(0, LEAD_FORM_PERK_MAX);
   const showPerks = variant === "section" && (Boolean(edit) || perks.some((perk) => perk.trim()) || Boolean(section.content.perkHeadline) || Boolean(section.content.perkBody));
   function setPerks(next: string[]) {
-    edit?.patch(section.id, { ...section.content, perks: next.map((text) => ({ text })) });
+    edit?.patch(section.id, { ...section.content, perks: next.slice(0, LEAD_FORM_PERK_MAX).map((text) => ({ text })) });
   }
   return (
-    <div className={variant === "popup" ? "px-6 py-6" : "mx-auto max-w-6xl px-4 py-20"}>
+    <div className={variant === "popup" ? cn("px-5 py-5", !compact && "px-6 py-6") : cn("mx-auto max-w-6xl px-4", compact ? "py-14" : "py-20")}>
       {variant === "section" ? (
         <p className="text-sm font-semibold text-primary">
           <InlineText
@@ -158,33 +164,42 @@ export function LeadForm({
           />
         </p>
       ) : null}
-      <h2 className={variant === "popup" ? "text-2xl font-bold break-keep" : "mt-2 text-3xl font-bold break-keep"}>
+      <h2 className={cn("font-medium break-keep", variant === "popup" ? "text-2xl" : cn("mt-2", compact ? "text-2xl" : "text-3xl"))}>
         <InlineText
           value={String(section.content.heading ?? chromeText(chrome, "formHeadingDefault", "관심고객등록"))}
           placeholder={chromeText(chrome, "formHeadingPh", "제목")}
           onCommit={edit ? (value) => edit.patch(section.id, { ...section.content, heading: value }) : undefined}
         />
       </h2>
-      {variant === "section" && (edit || String(section.content.body ?? "").trim()) ? (
+      {variant === "section" && (edit || String(snapshot.formSettings.intro || section.content.intro || section.content.body || "").trim()) ? (
         <p className="mt-4 max-w-3xl text-text-body">
           {edit ? (
-            <InlineText
-              value={String(section.content.body ?? "")}
-              multiline
-              placeholder={chromeText(chrome, "formBodyPh", "본문")}
-              onCommit={(value) => edit.patch(section.id, { ...section.content, body: value })}
-            />
+            <>
+              <InlineText
+                value={snapshot.formSettings.intro || String(section.content.intro ?? section.content.body ?? "")}
+                multiline
+                placeholder={chromeText(chrome, "formIntroPh", "안내 문구")}
+                onCommit={edit.setIntro}
+              />
+              <span className="mt-1 block text-xs text-text-muted">{chromeText(chrome, "hintBold", "**이렇게** 감싸면 공개 페이지에서 굵게 보입니다.")}</span>
+            </>
           ) : (
-            <MarkedText text={String(section.content.body ?? "")} />
+            <MarkedText text={snapshot.formSettings.intro || String(section.content.intro ?? section.content.body ?? "")} />
           )}
         </p>
       ) : null}
-      <div className={cn("mt-8 grid gap-8", showPerks && !narrow && "lg:grid-cols-2 lg:items-start lg:gap-10")}>
+      <div
+        className={cn(
+          "mt-8 grid gap-8",
+          showPerks && split && (narrow ? "grid-cols-2 items-start gap-6" : "lg:grid-cols-2 lg:items-start lg:gap-10"),
+        )}
+      >
         {showPerks ? (
           <div>
-            <h3 className="text-xl font-semibold break-keep">
+            <h3 className="text-xl font-semibold whitespace-pre-wrap break-keep">
               <InlineText
                 value={String(section.content.perkHeadline ?? "")}
+                multiline
                 placeholder={chromeText(chrome, "formPerkTitlePh", "혜택 제목")}
                 onCommit={edit ? (value) => edit.patch(section.id, { ...section.content, perkHeadline: value }) : undefined}
               />
@@ -203,7 +218,7 @@ export function LeadForm({
               </p>
             <ul className="mt-4 space-y-2">
               {perks.map((perk, index) => !edit && !perk.trim() ? null : (
-                <li key={index} className="flex items-start gap-2 text-text-body">
+                <li key={index} className={cn("group/edit flex items-start gap-2 text-text-body", edit && perks.length > 1 && "pr-1")}>
                   <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-bold text-primary">✓</span>
                   {edit ? (
                     <InlineText
@@ -215,31 +230,20 @@ export function LeadForm({
                     <MarkedText text={perk} />
                   )}
                   {edit && perks.length > 1 ? (
-                    <span className="flex shrink-0 gap-2 text-xs">
-                      <button type="button" className="text-text-body disabled:text-text-muted" disabled={index === 0} onClick={() => {
-                        const next = [...perks];
-                        const [row] = next.splice(index, 1);
-                        if (!row) return;
-                        next.splice(index - 1, 0, row);
-                        setPerks(next);
-                      }}>{chromeText(chrome, "editBefore", "앞")}</button>
-                      <button type="button" className="text-text-body disabled:text-text-muted" disabled={index === perks.length - 1} onClick={() => {
-                        const next = [...perks];
-                        const [row] = next.splice(index, 1);
-                        if (!row) return;
-                        next.splice(index + 1, 0, row);
-                        setPerks(next);
-                      }}>{chromeText(chrome, "editAfter", "뒤")}</button>
-                      <button type="button" className="text-text-muted" onClick={() => setPerks(perks.filter((_, itemIndex) => itemIndex !== index))}>
-                        {chromeText(chrome, "editRemove", "삭제")}
-                      </button>
-                    </span>
+                    <button
+                      type="button"
+                      className="pf-edit-x shrink-0"
+                      aria-label={chromeText(chrome, "editRemove", "삭제")}
+                      onClick={() => setPerks(perks.filter((_, itemIndex) => itemIndex !== index))}
+                    >
+                      ×
+                    </button>
                   ) : null}
                 </li>
               ))}
             </ul>
             {edit ? (
-              <button type="button" className="mt-3 text-sm font-medium text-primary" disabled={perks.length >= 8} onClick={() => setPerks([...perks, chromeText(chrome, "formPerkPh", "혜택을 입력하세요")])}>
+              <button type="button" className="mt-3 text-sm font-medium text-primary" disabled={perks.length >= LEAD_FORM_PERK_MAX} onClick={() => setPerks([...perks, chromeText(chrome, "formPerkPh", "혜택을 입력하세요")])}>
                 {chromeText(chrome, "editAddPerk", "혜택 추가")}
               </button>
             ) : null}
@@ -294,22 +298,24 @@ export function LeadForm({
         </div>
       ) : (
       <>
-      <p className="text-text-body">
-        {edit ? (
-          <>
-            <InlineText
-              value={snapshot.formSettings.intro || String(section.content.intro ?? "")}
-              multiline
-              placeholder={chromeText(chrome, "formIntroPh", "안내 문구")}
-              onCommit={edit.setIntro}
-            />
-            <span className="mt-1 block text-xs text-text-muted">{chromeText(chrome, "hintBold", "**이렇게** 감싸면 공개 페이지에서 굵게 보입니다.")}</span>
-          </>
-        ) : (
-          <MarkedText text={snapshot.formSettings.intro || String(section.content.intro ?? "")} />
-        )}
-      </p>
-      <form className={variant === "popup" ? "mt-4 space-y-3" : "mt-8 space-y-4"} onSubmit={onSubmit} onFocus={onFormStart}>
+      {variant === "popup" ? (
+        <p className="text-text-body">
+          {edit ? (
+            <>
+              <InlineText
+                value={snapshot.formSettings.intro || String(section.content.intro ?? "")}
+                multiline
+                placeholder={chromeText(chrome, "formIntroPh", "안내 문구")}
+                onCommit={edit.setIntro}
+              />
+              <span className="mt-1 block text-xs text-text-muted">{chromeText(chrome, "hintBold", "**이렇게** 감싸면 공개 페이지에서 굵게 보입니다.")}</span>
+            </>
+          ) : (
+            <MarkedText text={snapshot.formSettings.intro || String(section.content.intro ?? "")} />
+          )}
+        </p>
+      ) : null}
+      <form className={variant === "popup" ? "mt-4 space-y-3" : cn("space-y-5", !showPerks && "mt-8")} onSubmit={onSubmit} onFocus={onFormStart}>
         <input name="website" className="hidden" tabIndex={-1} autoComplete="off" />
         {snapshot.formSettings.fields.filter((field) => field.visible).map((field) =>
           field.type === "select" && field.key === "unitType" ? (
@@ -327,8 +333,8 @@ export function LeadForm({
               details={interestDetails(snapshot)}
             />
           ) : field.type === "radio" || field.type === "checkbox" ? (
-            <fieldset key={field.key} className="space-y-2">
-              <legend className="text-sm font-medium">{fieldTitle(field)}</legend>
+            <fieldset key={field.key} className="m-0 min-w-0 space-y-1.5 border-0 p-0">
+              <legend className="float-none w-full px-0 text-sm font-medium">{fieldTitle(field)}</legend>
               {(field.options ?? []).map((option) => (
                 <label key={option} className="flex items-center gap-2 text-sm">
                   <input type={field.type} name={field.key} value={option} required={field.type === "radio" && field.required} disabled={disabled || submitting} />
@@ -374,10 +380,10 @@ export function LeadForm({
             </label>
           ),
         )}
-        <div className="flex flex-wrap items-start gap-2 text-sm">
-          <label className="flex items-start gap-2">
-            <input type="checkbox" name="collection" required disabled={disabled || submitting} className="mt-1" />
-            <span onClick={edit ? (event) => event.preventDefault() : undefined}>
+        <div className="text-sm leading-6">
+          <label className="flex items-start gap-2.5">
+            <input type="checkbox" name="collection" required disabled={disabled || submitting} className="mt-1 size-[18px] shrink-0" />
+            <span className="min-w-0" onClick={edit ? (event) => event.preventDefault() : undefined}>
               {edit ? (
                 <InlineText
                   value={String(section.content.collectionConsent ?? "")}
@@ -387,23 +393,25 @@ export function LeadForm({
               ) : (
                 String(section.content.collectionConsent ?? "").trim() || chromeText(chrome, "formConsentPh", "[필수] 개인정보 수집 및 이용에 동의합니다.")
               )}
+              <button type="button" className="ml-2 inline font-semibold text-primary" onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                if ((event.target as HTMLElement).closest("[contenteditable='true'], [role='textbox']")) return;
+                setPrivacyOpen(true);
+              }}>
+                {edit ? (
+                  <InlineText value={String(section.content.privacyLinkLabel ?? "")} placeholder={chromeText(chrome, "formPrivacyLinkPh", "내용 보기")} onCommit={(value) => edit.patch(section.id, { ...section.content, privacyLinkLabel: value })} />
+                ) : (
+                  String(section.content.privacyLinkLabel ?? "").trim() || chromeText(chrome, "formPrivacyLinkPh", "내용 보기")
+                )}
+              </button>
             </span>
           </label>
-          <button type="button" className="font-semibold text-primary" onClick={(event) => {
-            if ((event.target as HTMLElement).closest("[contenteditable='true'], [role='textbox']")) return;
-            setPrivacyOpen(true);
-          }}>
-            {edit ? (
-              <InlineText value={String(section.content.privacyLinkLabel ?? "")} placeholder={chromeText(chrome, "formPrivacyLinkPh", "내용 보기")} onCommit={(value) => edit.patch(section.id, { ...section.content, privacyLinkLabel: value })} />
-            ) : (
-              String(section.content.privacyLinkLabel ?? "").trim() || chromeText(chrome, "formPrivacyLinkPh", "내용 보기")
-            )}
-          </button>
         </div>
         {privacyOpen ? <PrivacyNotice privacy={privacy} onClose={() => setPrivacyOpen(false)} edit={edit} /> : null}
         {privacy.thirdPartyProvisionEnabled ? (
-          <label className="flex items-start gap-2 text-sm">
-            <input type="checkbox" name="thirdParty" required disabled={disabled || submitting} className="mt-1" />
+          <label className="flex items-start gap-2.5 text-sm leading-6">
+            <input type="checkbox" name="thirdParty" required disabled={disabled || submitting} className="mt-1 size-[18px] shrink-0" />
             <span onClick={edit ? (event) => event.preventDefault() : undefined}>
               {edit ? (
                 <InlineText
@@ -420,16 +428,16 @@ export function LeadForm({
             </span>
           </label>
         ) : null}
-        {privacy.collectingControllerName === "처리주체미정" ? (
-          <p className="text-sm text-danger">
+        {isPlaceholderPartyName(privacy.collectingControllerName) || !privacy.collectingControllerName.trim() ? (
+          <p className="text-sm leading-6 text-danger">
             {edit ? (
               <InlineText
                 value={String(section.content.controllerWarning ?? "")}
-                placeholder={chromeText(chrome, "formControllerWarnPh", "개인정보 처리 주체가 확정되기 전에는 실제 접수가 저장되지 않을 수 있습니다.")}
+                placeholder={chromeText(chrome, "formControllerWarnPh", "개인정보 처리 주체가 정해지기 전에는 관심고객을 접수할 수 없습니다.")}
                 onCommit={(value) => edit.patch(section.id, { ...section.content, controllerWarning: value })}
               />
             ) : (
-              formCopy(section, "controllerWarning", chromeText(chrome, "formControllerWarnPh", "개인정보 처리 주체가 확정되기 전에는 실제 접수가 저장되지 않을 수 있습니다."))
+              formCopy(section, "controllerWarning", chromeText(chrome, "formControllerWarnPh", "개인정보 처리 주체가 정해지기 전에는 관심고객을 접수할 수 없습니다."))
             )}
           </p>
         ) : null}
@@ -518,7 +526,7 @@ function interestDetails(snapshot: PageSnapshot) {
       chrome,
     )
       .filter((spec) => spec.value.trim() && !(mark && spec.value.includes(mark)))
-      .slice(0, 3)
+      .slice(0, INTEREST_FLOORPLAN_SPEC_LINES)
       .map((spec) => `${spec.label} ${spec.value.trim()}`)
       .join(" · ");
     const text = [mark && summary.includes(mark) ? "" : summary, specLine].filter(Boolean).join(" · ");
@@ -576,8 +584,8 @@ function InterestTypes({
   const emptyPh = chromeText(chrome, "formUnitEmptyPh", "평면안내에서 타입 이름을 입력하면 여기에 나타납니다.");
   const helperPh = chromeText(chrome, "formUnitHelperPh", "여러 타입을 고를 수 있습니다. 이름은 평면안내와 맞춰집니다.");
   return (
-    <fieldset className="space-y-2">
-      <legend className="text-sm font-medium">
+    <fieldset className="m-0 min-w-0 space-y-1.5 border-0 p-0">
+      <legend className="float-none w-full px-0 text-sm font-medium">
         {onLabelCommit ? <InlineText value={label} placeholder={chromeText(chrome, "formFieldNamePh", "항목 이름")} onCommit={onLabelCommit} /> : label}
         {required ? " *" : ""}
       </legend>

@@ -9,9 +9,17 @@ import { LEAD_RATE_LIMIT_MAX, LEAD_RATE_LIMIT_WINDOW_MS } from "@/lib/constants"
 import { ApiError } from "@/lib/errors";
 import { slugLookupKey } from "@/lib/validation/slug";
 import { orgText } from "@/modules/admin/org-copy";
+import { LEAD_ANSWER_VALUE_MAX, LEAD_NAME_MAX } from "@/modules/leads/answers";
 import { processNotificationJobs } from "@/modules/lifecycle/service";
+import { FORM_FIELD_MAX } from "@/modules/templates/definitions";
 
 type Params = { params: Promise<{ slug: string }> };
+
+const leadAnswerValueSchema = z.union([
+  z.string().max(LEAD_ANSWER_VALUE_MAX),
+  z.array(z.string().max(LEAD_ANSWER_VALUE_MAX)).max(FORM_FIELD_MAX),
+  z.null(),
+]);
 
 export async function POST(request: NextRequest, { params }: Params) {
   try {
@@ -23,18 +31,18 @@ export async function POST(request: NextRequest, { params }: Params) {
     const body = await parseJsonBody(
       request,
       z.object({
-        website: z.string().optional(),
-        name: z.string().optional(),
-        phone: z.string().optional(),
-        answers: z.record(z.string(), z.unknown()).optional(),
+        website: z.string().max(200).optional(),
+        name: z.string().max(LEAD_NAME_MAX).optional(),
+        phone: z.string().max(40).optional(),
+        answers: z.record(z.string().max(80), leadAnswerValueSchema).optional(),
         consents: z
           .object({
             collection: z.boolean().optional(),
             thirdParty: z.boolean().optional(),
           })
           .optional(),
-        utm: z.record(z.string(), z.string().optional()).optional(),
-        referrer: z.string().nullable().optional(),
+        utm: z.record(z.string().max(80), z.string().max(200).optional()).optional(),
+        referrer: z.string().max(2_000).nullable().optional(),
       }),
     );
     if (body.website) {

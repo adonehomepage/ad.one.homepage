@@ -9,6 +9,8 @@ import { Badge, badgeLabels } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { assertLeadAdminFeature } from "@/lib/feature-guard";
 
+export const metadata = { title: "관심고객" };
+
 function leadText(settings: Record<string, unknown>, key: string, fallback: string) {
   return String(settings[key] ?? "").trim() || fallback;
 }
@@ -39,6 +41,8 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ lea
   const lead = await getLead(ctx.organization.id, leadId, ctx.user.id);
   const draft = await getDraft(ctx.organization.id, lead.projectId).catch(() => null);
   const settings = (draft?.draft.globalSettings ?? {}) as Record<string, unknown>;
+  const formFields = (draft?.draft.formSettings as { fields?: Parameters<typeof formatLeadAnswers>[1] } | undefined)?.fields;
+  const answerRows = formatLeadAnswers(lead.answersJson, formFields);
   const text = (key: string, fallback: string) => leadText(settings, key, fallback);
   const inquiry = lead.inquiryText || text("shellMissing", "없음");
   const source = lead.utmSource ?? "direct";
@@ -57,9 +61,9 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ lea
       </div>
       <div className="ui-card text-sm">
         <h2 className="font-semibold">{text("shellLeadAnswers", "등록 내용")}</h2>
-        {formatLeadAnswers(lead.answersJson).length > 0 ? (
+        {answerRows.length > 0 ? (
           <dl className="mt-3 space-y-2">
-            {formatLeadAnswers(lead.answersJson).map((item) => (
+            {answerRows.map((item) => (
               <div key={item.key}>
                 <dt className="text-text-muted">{item.label}</dt>
                 <dd className="mt-1 text-text-primary">{item.text}</dd>

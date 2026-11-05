@@ -1,8 +1,6 @@
 import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
-  advertiserRecipients,
-  leads,
   projectDrafts,
   projects,
   projectSections,
@@ -13,9 +11,23 @@ import { ApiError } from "@/lib/errors";
 import { appConfig } from "@/lib/config";
 import { validateSlug } from "@/lib/validation/slug";
 import { writeAudit } from "@/modules/audit/service";
-import { createTemplateSections, TEMPLATE_CATALOG } from "@/modules/templates/definitions";
+import {
+  createTemplateSections,
+  normalizeFormSettings,
+  normalizeGlobalSettings,
+  normalizePrivacySettings,
+  normalizeSectionContent,
+  sampleGlobalExtras,
+  TEMPLATE_CATALOG,
+  withUnitTypeOptions,
+} from "@/modules/templates/definitions";
 import { newProjectDraftParts } from "@/modules/projects/draft-defaults";
+import { clampLaunchExcludedSection } from "@/modules/sections/duplicate";
 import { addCalendarMonths } from "@/lib/datetime";
+import { applySiteIdentity, defaultMiddayPresaleData, MIDDAY_DATA_KEY } from "@/modules/templates/midday-origin/midday-data";
+import { resolveInterestTypeFormOptions } from "@/modules/templates/midday-origin/lib/presale-landing-normalize";
+import { applyOakSiteIdentity, OAK_DATA_KEY } from "@/modules/templates/oak-editorial/oak-data";
+import { defaultOakEditorialData } from "@/modules/templates/oak-editorial/default-data";
 import type { PageSection, PageSnapshot, TemplateCode } from "@/types";
 import { nanoid } from "nanoid";
 import { orgText } from "@/modules/admin/org-copy";
@@ -115,9 +127,50 @@ export async function createProject(input: {
     .returning();
 
   const draft = newProjectDraftParts({ name, phone: input.phone?.trim() ?? "" });
-  const sections = createTemplateSections(input.templateCode, project.id, draft.globalSettings).map((section) => {
+  if (input.templateCode === "midday" || input.templateCode === "info") {
+    const midday = applySiteIdentity(defaultMiddayPresaleData(), {
+      siteName: name,
+      phone: input.phone?.trim() || undefined,
+    });
+    (draft.globalSettings as Record<string, unknown>)[MIDDAY_DATA_KEY] = midday;
+    (draft.globalSettings as Record<string, unknown>).siteName = name;
+    (draft.globalSettings as Record<string, unknown>).phone = midday.gnb.phone;
+    const interestLabels = resolveInterestTypeFormOptions(midday).map((item) => item.label);
+    draft.formSettings = {
+      ...draft.formSettings,
+      fields: withUnitTypeOptions(draft.formSettings.fields, interestLabels),
+    };
+  }
+  if (input.templateCode === "oak-editorial") {
+    const oak = applyOakSiteIdentity(defaultOakEditorialData(), {
+      siteName: name,
+      phone: input.phone?.trim() || undefined,
+    });
+    (draft.globalSettings as Record<string, unknown>)[OAK_DATA_KEY] = oak;
+    (draft.globalSettings as Record<string, unknown>).siteName = name;
+    (draft.globalSettings as Record<string, unknown>).logoUrl = oak.logoUrl;
+    const popup = (draft.globalSettings as Record<string, unknown>).popup as Record<string, unknown> | undefined;
+    if (popup) (draft.globalSettings as Record<string, unknown>).popup = { ...popup, enabled: false };
+    const planNames = oak.floorplan.plans.map((plan) => String(plan.name ?? "").trim()).filter(Boolean);
+    draft.formSettings = {
+      ...draft.formSettings,
+      fields: withUnitTypeOptions(draft.formSettings.fields, planNames),
+    };
+  }
+  // 처음부터 예시 팩으로 채운 뒤, 현장명만 히어로에 덮어쓴다. 전화는 draft.globalSettings.phone / snapshot.phone.
+  const sections = createTemplateSections(input.templateCode, project.id, {
+    ...sampleGlobalExtras(),
+    ...draft.globalSettings,
+  }).map((section) => {
     if (section.sectionType !== "hero") return section;
-    return { ...section, content: { ...section.content, headline: name } };
+    if (input.templateCode === "oak-editorial") return section;
+    return {
+      ...section,
+      content: {
+        ...section.content,
+        headline: name,
+      },
+    };
   });
   await db.insert(projectSections).values(
     sections.map((section) => ({
@@ -257,7 +310,7 @@ export async function saveDraft(input: {
   privacySettings?: Record<string, unknown>;
   sections?: PageSection[];
 }) {
-  const { project, draft } = await getDraft(input.organizationId, input.projectId);
+  const { project, template, draft } = await getDraft(input.organizationId, input.projectId);
   if (!draft) throw new ApiError("NOT_FOUND", orgText("draftNotFound"), 404);
   if (draft.revision !== input.expectedRevision || project.draftRevision !== input.expectedRevision) {
     throw new ApiError("DRAFT_CONFLICT", orgText("draftConflict"), 409, undefined, undefined, {
@@ -266,14 +319,24 @@ export async function saveDraft(input: {
   }
 
   const nextRevision = draft.revision + 1;
+  const templateCode = String(template.code);
+  const globalSettings = input.globalSettings
+    ? normalizeGlobalSettings(input.globalSettings)
+    : (draft.globalSettings as Record<string, unknown>);
+  const formSettings = input.formSettings
+    ? normalizeFormSettings(input.formSettings as PageSnapshot["formSettings"])
+    : (draft.formSettings as PageSnapshot["formSettings"]);
+  const privacySettings = input.privacySettings
+    ? normalizePrivacySettings(input.privacySettings as PageSnapshot["privacy"])
+    : (draft.privacySettings as PageSnapshot["privacy"]);
   await db.transaction(async (tx) => {
     await tx
       .update(projectDrafts)
       .set({
-        globalSettings: input.globalSettings ?? draft.globalSettings,
-        formSettings: input.formSettings ?? draft.formSettings,
+        globalSettings,
+        formSettings,
         seoSettings: input.seoSettings ?? draft.seoSettings,
-        privacySettings: input.privacySettings ?? draft.privacySettings,
+        privacySettings,
         revision: nextRevision,
         updatedBy: input.userId,
         updatedAt: new Date(),
@@ -281,7 +344,12 @@ export async function saveDraft(input: {
       .where(eq(projectDrafts.projectId, input.projectId));
 
     if (input.sections) {
-      for (const section of input.sections) {
+      for (const raw of input.sections) {
+        const clamped = clampLaunchExcludedSection(raw, { templateCode });
+        const section = {
+          ...clamped,
+          content: normalizeSectionContent(clamped.sectionType, clamped.content ?? {}),
+        };
         const existing = await tx
           .select({ id: projectSections.id })
           .from(projectSections)
@@ -329,7 +397,7 @@ export async function saveDraft(input: {
         .from(projectSections)
         .where(eq(projectSections.projectId, input.projectId));
       for (const row of current) {
-        if (row.sectionType === "faq" || (!keepIds.includes(row.id) && !row.isOriginal)) {
+        if (!keepIds.includes(row.id) && !row.isOriginal) {
           await tx.delete(projectSections).where(eq(projectSections.id, row.id));
         }
       }
@@ -354,18 +422,24 @@ export async function saveDraft(input: {
 export async function buildSnapshot(organizationId: string, projectId: string): Promise<PageSnapshot> {
   const { project, template, draft, sections } = await getDraft(organizationId, projectId);
   if (!draft) throw new ApiError("NOT_FOUND", orgText("draftNotFound"), 404);
-  const mapped = sections
-    .map(mapSectionRow)
-    .filter((section) => (section.sectionType as string) !== "faq");
-  const privacy = draft.privacySettings as PageSnapshot["privacy"];
-  const settings = draft.globalSettings as Record<string, unknown>;
+  // 발행·토큰 미리보기: FAQ·gallery 숨김 + 배열 상한 (oak-editorial FAQ는 예외).
+  const templateCode = String(template.code);
+  const mapped = sections.map((row) => {
+    const clamped = clampLaunchExcludedSection(mapSectionRow(row), { templateCode });
+    return {
+      ...clamped,
+      content: normalizeSectionContent(clamped.sectionType, clamped.content ?? {}),
+    };
+  });
+  const privacy = normalizePrivacySettings(draft.privacySettings as PageSnapshot["privacy"]);
+  const settings = normalizeGlobalSettings(draft.globalSettings as Record<string, unknown>);
   return {
     templateCode: template.code as TemplateCode,
     projectName: String(settings.siteName || project.name),
     publicSlug: project.publicSlug,
-    phone: String((draft.globalSettings as Record<string, unknown>).phone ?? ""),
-    globalSettings: draft.globalSettings as Record<string, unknown>,
-    formSettings: draft.formSettings as PageSnapshot["formSettings"],
+    phone: String(settings.phone ?? ""),
+    globalSettings: settings,
+    formSettings: normalizeFormSettings(draft.formSettings as PageSnapshot["formSettings"]),
     seoSettings: draft.seoSettings as PageSnapshot["seoSettings"],
     privacy,
     sections: mapped,

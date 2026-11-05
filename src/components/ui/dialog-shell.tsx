@@ -10,6 +10,7 @@ export function DialogShell({
   onClose,
   closeLabel = "닫기",
   closeDisabled,
+  closeOnOutside = true,
   size = "md",
   children,
   className,
@@ -20,22 +21,28 @@ export function DialogShell({
   onClose?: () => void;
   closeLabel?: string;
   closeDisabled?: boolean;
+  /** false면 바깥(백드롭) 클릭해도 닫히지 않음 — 닫기/X만 가능 */
+  closeOnOutside?: boolean;
   size?: "sm" | "md" | "lg";
   children: ReactNode;
   className?: string;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="presentation">
-      <button
-        type="button"
-        className="absolute inset-0 bg-text-primary/45"
-        aria-label={closeLabel}
-        disabled={closeDisabled}
-        onClick={() => {
-          if (closeDisabled) return;
-          onClose?.();
-        }}
-      />
+    <div className="fixed inset-0 z-[70] flex items-center justify-center overflow-hidden p-4" role="presentation">
+      {closeOnOutside ? (
+        <button
+          type="button"
+          className="absolute inset-0 bg-text-primary/45"
+          aria-label={closeLabel}
+          disabled={closeDisabled}
+          onClick={() => {
+            if (closeDisabled) return;
+            onClose?.();
+          }}
+        />
+      ) : (
+        <div className="absolute inset-0 bg-text-primary/45" aria-hidden />
+      )}
       <div
         ref={panelRef as RefObject<HTMLDivElement>}
         role="dialog"
@@ -43,7 +50,7 @@ export function DialogShell({
         aria-labelledby={titleId}
         aria-describedby={describedBy}
         className={cn(
-          "relative z-10 flex max-h-[min(88vh,720px)] w-full flex-col overflow-hidden rounded-[16px] border border-border bg-white",
+          "relative z-10 flex max-h-full min-h-0 w-full flex-col overflow-hidden rounded-[16px] border border-border bg-white",
           size === "sm" && "max-w-[22rem]",
           size === "md" && "max-w-[28rem]",
           size === "lg" && "max-w-[36rem]",

@@ -19,7 +19,8 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@midday/*": ["./src/modules/templates/midday-origin/*"]
     }
   },
   "include": [

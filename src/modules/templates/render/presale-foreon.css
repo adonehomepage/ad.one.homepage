@@ -1,0 +1,917 @@
+/*
+ * FOREON 분양 현장 스킨. 공개·미리보기·편집 캔버스의 랜딩 루트(.presale-foreon) 안에서만 적용한다.
+ * 관리자 화면의 globals.css 토스 토큰은 건드리지 않는다(@theme inline이라 변수 덮어쓰기가 안 되어 클래스 단위로 맞춘다).
+ */
+
+.presale-foreon {
+  --pf-canvas: #171721;
+  --pf-band: #1b1b26;
+  --pf-card: #1e1e2a;
+  --pf-ui: #272735;
+  --pf-ink: #ededf3;
+  --pf-muted: #c3c3cc;
+  --pf-subtle: #9f9faf;
+  --pf-accent: #5266eb;
+  --pf-accent-text: #a3afff;
+  --pf-line: rgba(255, 255, 255, 0.12);
+  --pf-danger: #ff8a93;
+  /* 상단 고정 헤더 높이. LandingPage가 실제 높이로 갱신한다. */
+  --pf-header-h: 72px;
+  /* 하단 플로팅 문의 바 예약 높이(홈 인디케이터 포함). */
+  --pf-dock-h: 5.75rem;
+  --pf-dock-reserve: calc(var(--pf-dock-h) + env(safe-area-inset-bottom, 0px));
+
+  background-color: var(--pf-canvas);
+  color: var(--pf-ink);
+  color-scheme: dark;
+  font-family: "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  word-break: keep-all;
+}
+
+/* ── 색 토큰 대응 ─────────────────────────────── */
+.presale-foreon .bg-white { background-color: var(--pf-card); }
+.presale-foreon .bg-white\/90 { background-color: rgba(23, 23, 33, 0.92); }
+.presale-foreon .bg-white\/75 { background-color: rgba(23, 23, 33, 0.78); }
+.presale-foreon .bg-surface { background-color: var(--pf-ui); }
+.presale-foreon .bg-primary { background-color: var(--pf-accent); }
+.presale-foreon .bg-primary-soft { background-color: rgba(82, 102, 235, 0.2); }
+.presale-foreon .text-primary { color: var(--pf-accent-text); }
+.presale-foreon .text-primary-soft-foreground { color: var(--pf-accent-text); }
+.presale-foreon .text-text-primary { color: var(--pf-ink); }
+.presale-foreon .text-text-body { color: var(--pf-muted); }
+.presale-foreon .text-text-muted { color: var(--pf-subtle); }
+.presale-foreon .text-danger { color: var(--pf-danger); }
+.presale-foreon .border-border { border-color: var(--pf-line); }
+.presale-foreon .border-border\/80 { border-color: var(--pf-line); }
+.presale-foreon .border-primary { border-color: var(--pf-accent); }
+.presale-foreon .ring-primary { --tw-ring-color: var(--pf-accent); }
+.presale-foreon .hover\:bg-surface:hover { background-color: var(--pf-ui); }
+.presale-foreon .hover\:text-text-primary:hover,
+.presale-foreon .group:hover .group-hover\:text-text-primary { color: var(--pf-ink); }
+.presale-foreon [class~="disabled:text-text-muted"]:disabled { color: var(--pf-subtle); }
+.presale-foreon .text-white { color: #fff; }
+
+/* ── 카드·입력 ────────────────────────────────── */
+.presale-foreon .ui-card {
+  border-color: var(--pf-line);
+  background-color: var(--pf-card);
+}
+.presale-foreon .ui-chip {
+  border-color: var(--pf-line);
+  background-color: var(--pf-card);
+  color: var(--pf-muted);
+}
+.presale-foreon .ui-field,
+.presale-foreon input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.presale-foreon textarea,
+.presale-foreon select {
+  border-color: var(--pf-line);
+  background-color: var(--pf-ui);
+  color: var(--pf-ink);
+}
+.presale-foreon .ui-field { border-radius: 32px; }
+.presale-foreon textarea.ui-field { border-radius: 20px; }
+.presale-foreon ::placeholder { color: var(--pf-subtle); opacity: 1; }
+.presale-foreon input[type="checkbox"],
+.presale-foreon input[type="radio"] { accent-color: var(--pf-accent); }
+.presale-foreon :is(a, button, summary, input, textarea, select):focus-visible {
+  outline: 2px solid var(--pf-ink);
+  outline-offset: 4px;
+}
+
+/* 카드 12px, 버튼 알약형(32px) */
+.presale-foreon .rounded-\[16px\] { border-radius: 12px; }
+.presale-foreon :is(a, button, label).rounded-\[14px\] { border-radius: 32px; }
+.presale-foreon .border-white\/30 { border-color: rgba(255, 255, 255, 0.3); }
+
+/* ── 타이포·섹션 리듬 ─────────────────────────── */
+.presale-foreon h1,
+.presale-foreon h2 { font-weight: 500; letter-spacing: -0.035em; }
+.presale-foreon h2 { line-height: 1.28; }
+.presale-foreon h3 { font-weight: 500; }
+.presale-foreon .pf-band { background-color: var(--pf-band); }
+.presale-foreon section[id] { scroll-margin-top: calc(var(--pf-header-h, 72px) + 12px); }
+
+/* ── 히어로: 스크롤 연동 이미지 확대 ───────────── */
+/* 에디터 프레임은 모니터 svh가 아니라 폰·태블릿 화면 높이를 쓴다. */
+[data-device-frame][data-device-viewport="mobile"] .presale-foreon { --pf-vh: min(844px, 100svh); }
+[data-device-frame][data-device-viewport="tablet"] .presale-foreon { --pf-vh: min(1024px, 100svh); }
+
+.presale-foreon .pf-track {
+  position: relative;
+  --pf-zoom: 1;
+  --pf-fade: 1;
+  --pf-shift: 0px;
+  --pf-hint: 1;
+  --pf-veil: 0;
+  /* 고정 헤더가 가리는 높이를 뺀 실제 무대 높이 */
+  --pf-stage-h: calc(var(--pf-vh, 100svh) - var(--pf-header-h, 72px));
+  height: calc(var(--pf-stage-h) * 1.75);
+  min-height: var(--pf-track-min, 1100px);
+}
+.presale-foreon .pf-stage {
+  position: sticky;
+  top: var(--pf-header-h, 72px);
+  height: var(--pf-stage-h);
+  min-height: var(--pf-stage-min, 620px);
+  overflow: hidden;
+  isolation: isolate;
+  background: #24303d;
+}
+.presale-foreon .pf-scene {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  transform: scale(var(--pf-zoom));
+  transform-origin: center 46%;
+  will-change: transform;
+}
+.presale-foreon .pf-scene > picture,
+.presale-foreon .pf-scene > img { display: block; width: 100%; height: 100%; }
+.presale-foreon .pf-scene-fallback {
+  width: 100%;
+  height: 100%;
+  background:
+    radial-gradient(ellipse 60% 45% at 40% 45%, rgba(255, 221, 173, 0.35), transparent 70%),
+    linear-gradient(180deg, #33435d 0%, #7a8692 48%, #bcae9c 72%, #576875 100%);
+}
+.presale-foreon .pf-shade {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  /* 직방 화보형: 배경 이미지만 딤. 글·버튼(z-index:2)은 덮지 않음 */
+  background: linear-gradient(
+    180deg,
+    rgba(12, 16, 27, 0.5) 0%,
+    rgba(18, 21, 32, 0.28) 42%,
+    rgba(15, 21, 31, 0.34) 68%,
+    rgba(12, 14, 22, 0.78) 100%
+  );
+}
+.presale-foreon .pf-shade::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #0c101b;
+  opacity: var(--pf-veil);
+  pointer-events: none;
+}
+.presale-foreon .pf-copy .pf-title,
+.presale-foreon .pf-copy .pf-sub,
+.presale-foreon .pf-copy .pf-eyebrow,
+.presale-foreon .pf-copy .pf-benefit,
+.presale-foreon .pf-region {
+  opacity: 1;
+  color: #fff;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+}
+.presale-foreon .pf-region {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem 0.5rem;
+  min-height: 1.5rem;
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #f7f8fa;
+}
+.presale-foreon .pf-region-edit {
+  /* 편집 시 칸이 늘어나도 제목이 밀리지 않도록 한 줄 높이를 고정한다. */
+  min-height: 2rem;
+}
+.presale-foreon .pf-region-part {
+  display: inline-block;
+  min-width: 4.5rem;
+  max-width: min(12rem, 42vw);
+  text-align: center;
+  color: inherit;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+}
+.presale-foreon .pf-region-sep {
+  opacity: 0.7;
+}
+.presale-foreon .pf-grain {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  opacity: 0.03;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Cpath fill='%23fff' filter='url(%23n)' opacity='.5' d='M0 0h180v180H0z'/%3E%3C/svg%3E");
+}
+.presale-foreon .pf-copy {
+  position: relative;
+  z-index: 2;
+  padding-top: clamp(36px, 7svh, 88px);
+  /* 하단 스크롤 힌트·썸네일과 겹치지 않도록 여백 */
+  padding-bottom: 4.5rem;
+  opacity: var(--pf-fade);
+  transform: translate3d(0, var(--pf-shift), 0);
+  will-change: transform;
+}
+.presale-foreon .pf-stage:has(.pf-thumbs) .pf-copy {
+  padding-bottom: 6.25rem;
+}
+.presale-foreon .pf-eyebrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: #fff;
+}
+.presale-foreon .pf-dot { width: 5px; height: 5px; border-radius: 50%; background: #fff; }
+.presale-foreon .pf-title {
+  margin: 24px 0;
+  font-size: clamp(36px, 4.65vw, 65px);
+  font-weight: 800;
+  line-height: 1.23;
+  letter-spacing: -0.045em;
+  color: #fff;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+}
+.presale-foreon .pf-sub {
+  max-width: 540px;
+  margin: 0 auto;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.7;
+  color: #fff;
+}
+.presale-foreon .pf-actions {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 30px;
+  opacity: 1;
+}
+.presale-foreon .pf-actions > a,
+.presale-foreon .pf-actions > span {
+  max-width: 100%;
+  opacity: 1;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.presale-foreon .pf-actions > a.bg-primary {
+  background-color: var(--color-primary, #3182f6);
+  border-color: var(--color-primary, #3182f6);
+  color: #fff;
+  font-weight: 700;
+}
+.presale-foreon .pf-actions > a:not(.bg-primary),
+.presale-foreon .pf-actions > span {
+  background-color: rgba(255, 255, 255, 0.1);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
+  backdrop-filter: blur(12px) saturate(1.2);
+  border-color: rgba(255, 255, 255, 0.42);
+  color: #fff;
+  font-weight: 700;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+.presale-foreon .pf-scroll-hint {
+  position: absolute;
+  z-index: 2;
+  left: max(20px, calc((100% - 1152px) / 2 + 16px));
+  bottom: 42px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: #fff;
+  opacity: var(--pf-hint);
+  transform: translateY(calc((1 - var(--pf-hint)) * 12px));
+  pointer-events: none;
+}
+.presale-foreon .pf-scroll-line { position: relative; width: 1px; height: 38px; background: rgba(255, 255, 255, 0.4); }
+.presale-foreon .pf-scroll-line::after {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: 2px;
+  width: 3px;
+  height: 9px;
+  background: #fff;
+  animation: pf-drift 1.8s infinite;
+}
+@keyframes pf-drift { to { transform: translateY(24px); opacity: 0; } }
+
+/* 편집 중 로고 교체 안내 말풍선만 위아래 보빙 (로고 칸은 고정) */
+@keyframes pf-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+.presale-foreon .pf-logo-hint {
+  animation: pf-bob 1.4s ease-in-out infinite;
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .presale-foreon .pf-logo-hint {
+    animation: none;
+    will-change: auto;
+  }
+}
+
+@media (max-width: 767px) {
+  .presale-foreon .pf-track { height: calc(var(--pf-stage-h) * 1.45); min-height: var(--pf-track-min, 900px); }
+  /* 짧은 폰에서 카피가 잘리지 않도록 stage 최소 높이를 뷰포트에 맞춤 */
+  .presale-foreon .pf-stage { min-height: min(var(--pf-stage-min, 640px), var(--pf-stage-h)); }
+  .presale-foreon .pf-scene { transform-origin: center 46%; }
+  .presale-foreon .pf-copy { padding-top: 20px; padding-inline: 4px; padding-bottom: 5rem; }
+  .presale-foreon .pf-stage:has(.pf-thumbs) .pf-copy { padding-bottom: 6.5rem; }
+  .presale-foreon .pf-title { font-size: clamp(26px, 8vw, 32px); line-height: 1.3; max-width: 20em; margin-inline: auto; }
+  .presale-foreon .pf-sub { font-size: 15px; max-width: 300px; }
+  .presale-foreon .pf-eyebrow { font-size: 10px; letter-spacing: 0.12em; }
+  .presale-foreon .pf-actions { gap: 8px; margin-top: 20px; }
+  .presale-foreon .pf-scroll-hint { bottom: 32px; }
+}
+
+/* 편집 캔버스의 좁은 미리보기(PC 브라우저 안의 모바일·태블릿 틀) */
+.presale-foreon .pf-track[data-narrow="true"] { height: calc(var(--pf-stage-h) * 1.45); min-height: var(--pf-track-min, 900px); }
+.presale-foreon .pf-track[data-narrow="true"] .pf-stage { min-height: min(var(--pf-stage-min, 640px), var(--pf-stage-h)); }
+.presale-foreon .pf-track[data-narrow="true"] .pf-scene { transform-origin: center 46%; }
+.presale-foreon .pf-track[data-narrow="true"] .pf-copy { padding-top: 20px; padding-inline: 4px; padding-bottom: 5rem; }
+.presale-foreon .pf-track[data-narrow="true"] .pf-stage:has(.pf-thumbs) .pf-copy { padding-bottom: 6.5rem; }
+.presale-foreon .pf-track[data-narrow="true"] .pf-title { font-size: clamp(26px, 8vw, 32px); line-height: 1.3; max-width: 20em; margin-inline: auto; }
+.presale-foreon .pf-track[data-narrow="true"] .pf-region-part { max-width: min(10.5rem, 46vw); }
+.presale-foreon .pf-track[data-narrow="true"] .pf-sub { font-size: 15px; max-width: 300px; padding-inline: 4px; }
+.presale-foreon .pf-track[data-narrow="true"] .pf-actions {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  margin-top: 20px;
+  margin-inline: auto;
+  max-width: 20rem;
+}
+.presale-foreon .pf-track[data-narrow="true"] .pf-actions > a,
+.presale-foreon .pf-track[data-narrow="true"] .pf-actions > span {
+  width: 100%;
+  justify-content: center;
+  box-sizing: border-box;
+}
+.presale-foreon .pf-track[data-narrow="true"] .pf-benefit {
+  font-size: 14px;
+  padding-inline: 12px;
+  line-height: 1.45;
+}
+.presale-foreon .pf-track[data-narrow="true"] .pf-scroll-hint { bottom: 32px; }
+
+/* 모션 최소화·편집 중: sticky 추가 길이 없이 정적 히어로 */
+.presale-foreon .pf-track[data-static="true"] { height: auto; min-height: 0; }
+.presale-foreon .pf-track[data-static="true"] .pf-stage {
+  position: relative;
+  top: auto;
+  height: auto;
+  min-height: min(720px, var(--pf-stage-h));
+}
+.presale-foreon .pf-track[data-static="true"] .pf-scene { transform: none; }
+.presale-foreon .pf-track[data-static="true"] .pf-copy,
+.presale-foreon .pf-track[data-static="true"] .pf-scroll-hint { transform: none; }
+.presale-foreon .pf-track[data-static="true"] .pf-scroll-line::after { animation: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .presale-foreon .pf-track { height: auto; min-height: 0; }
+  .presale-foreon .pf-stage { position: relative; top: auto; height: auto; min-height: min(720px, var(--pf-stage-h)); }
+  .presale-foreon .pf-scene { transform: none; }
+  .presale-foreon .pf-copy,
+  .presale-foreon .pf-scroll-hint { transform: none; }
+  .presale-foreon .pf-scroll-line::after { animation: none; }
+}
+
+/* ── FAQ 아코디언 ─────────────────────────────── */
+.presale-foreon .pf-faqs details > summary {
+  position: relative;
+  padding: 22px 30px 22px 0;
+  font-size: 17px;
+  line-height: 1.5;
+  cursor: pointer;
+  list-style: none;
+}
+.presale-foreon .pf-faqs details > summary::-webkit-details-marker { display: none; }
+.presale-foreon .pf-faqs details > summary::after {
+  content: "+";
+  position: absolute;
+  right: 0;
+  top: 21px;
+  font-size: 20px;
+  color: var(--pf-subtle);
+}
+.presale-foreon .pf-faqs details[open] > summary::after { content: "−"; }
+.presale-foreon .pf-faqs details > p {
+  margin: 0;
+  padding: 0 0 24px;
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--pf-muted);
+  white-space: pre-wrap;
+}
+
+/* ── 히어로: 분양가·혜택·신뢰 태그 (직방 프리미엄 화보형 글래스) ── */
+.presale-foreon .pf-sub { white-space: pre-line; }
+.presale-foreon .pf-price {
+  max-width: 460px;
+  margin: 28px auto 0;
+  padding: 20px 24px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  background: rgba(18, 20, 28, 0.72);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  backdrop-filter: blur(18px) saturate(1.2);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 10px 36px rgba(0, 0, 0, 0.28);
+  text-align: center;
+  color: #fff;
+  text-shadow: none;
+}
+.presale-foreon .pf-price-label { margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; color: #fff; }
+.presale-foreon .pf-price-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px 12px;
+  margin: 8px 0 0;
+  color: #fff;
+}
+.presale-foreon .pf-price-type { font-size: 15px; font-weight: 600; color: #fff; }
+.presale-foreon .pf-price-value { font-size: clamp(26px, 3.2vw, 38px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.2; color: #fff; }
+.presale-foreon .pf-price-sub { margin: 8px 0 0; font-size: 14px; font-weight: 600; color: #fff; }
+.presale-foreon .pf-price-note { margin: 10px 0 0; font-size: 12px; font-weight: 500; line-height: 1.5; color: rgba(255, 255, 255, 0.88); }
+.presale-foreon .pf-benefit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 18px auto 0;
+  max-width: 540px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: #fff;
+}
+.presale-foreon .pf-benefit-badge {
+  display: inline-flex;
+  align-items: center;
+  height: auto;
+  padding: 3px 9px;
+  border-radius: 4px;
+  background: #1d72f3;
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #fff;
+  flex-shrink: 0;
+}
+.presale-foreon .pf-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin: 22px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.presale-foreon .pf-tags > li {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 0;
+  padding: 9px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  border-radius: 100px;
+  background: rgba(255, 255, 255, 0.12);
+  -webkit-backdrop-filter: blur(20px) saturate(1.35);
+  backdrop-filter: blur(20px) saturate(1.35);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 4px 18px rgba(0, 0, 0, 0.12);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  color: #fff;
+}
+.presale-foreon .pf-tags .pf-edit-x {
+  height: 1.25rem;
+  width: 1.25rem;
+  font-size: 14px;
+  color: #c3c9d6;
+}
+.presale-foreon .pf-tags .pf-edit-x:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+@media (max-width: 767px) {
+  .presale-foreon .pf-price { margin-top: 20px; padding: 14px 16px; }
+  .presale-foreon .pf-price-value { font-size: 26px; }
+  .presale-foreon .pf-benefit { font-size: 14px; }
+}
+.presale-foreon .pf-track[data-narrow="true"] .pf-price { margin-top: 20px; padding: 14px 16px; }
+.presale-foreon .pf-track[data-narrow="true"] .pf-price-value { font-size: 26px; }
+
+/* 하단 문의 플로팅 바 */
+.presale-foreon .pf-dock {
+  background: rgba(30, 30, 42, 0.92);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+.presale-foreon .pf-dock-slot {
+  /* 예약 높이는 본문이 가려지지 않게만 쓴다. 바 자체는 화면 하단에 붙인다. */
+  top: calc(100% - 16px);
+  margin-bottom: calc(-1 * var(--pf-dock-reserve));
+}
+.presale-foreon .pf-dock-panel {
+  bottom: env(safe-area-inset-bottom, 0px);
+}
+/* 푸터 — 직방 presale-footer와 같은 구성(상단 브랜드·전화 + 안내 한 덩어리) */
+.presale-foreon footer.pf-footer {
+  background: var(--color-text-primary, #191f28);
+  color: var(--color-text-muted, #8b95a1);
+  font-size: 13px;
+  padding: 46px 1rem calc(3.5rem + var(--pf-dock-reserve));
+}
+.presale-foreon .pf-ft-wrap {
+  margin: 0 auto;
+  max-width: 72rem;
+}
+.presale-foreon .pf-ft-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem 1.875rem;
+  padding-bottom: 26px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+.presale-foreon .pf-ft-name {
+  color: #fff;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+}
+.presale-foreon .pf-ft-sub {
+  margin-top: 4px;
+  color: #aeb6c4;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+.presale-foreon .pf-ft-tel {
+  text-align: right;
+}
+.presale-foreon .pf-ft-tel-label {
+  color: #aeb6c4;
+  font-size: 12px;
+}
+.presale-foreon .pf-ft-tel-num {
+  display: block;
+  margin-top: 2px;
+  color: #fff;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+.presale-foreon .pf-ft-tel-num a {
+  color: inherit;
+}
+.presale-foreon .pf-ft-info {
+  padding-top: 22px;
+  color: #8b93a3;
+  font-size: 12px;
+  line-height: 1.9;
+  white-space: pre-wrap;
+}
+.presale-foreon .pf-ft-copy {
+  margin-top: 28px;
+  color: #6b7280;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+.presale-foreon footer.pf-footer .inline-edit:hover,
+.presale-foreon footer.pf-footer .inline-edit:focus,
+.presale-foreon footer.pf-footer .inline-edit:focus-visible {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* ── 편집 캔버스: 글 상자·이미지 편집 표시 ───────── */
+/* 점선+라이트 ring 이중 테두리 제거. 호버·포커스만 살짝. */
+.presale-foreon .inline-edit {
+  --tw-ring-color: transparent;
+  box-shadow: none !important;
+  outline: none;
+  border-radius: 4px;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+.presale-foreon[data-editing] .inline-edit:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.presale-foreon[data-editing] .inline-edit:focus,
+.presale-foreon[data-editing] .inline-edit:focus-visible {
+  background: rgba(255, 255, 255, 0.09);
+  box-shadow: inset 0 -1px 0 0 rgba(163, 175, 255, 0.65) !important;
+  outline: none;
+}
+/* CTA·뱃지·태그 안에서는 편집 표시를 더 숨김 */
+.presale-foreon .pf-actions .inline-edit,
+.presale-foreon .pf-benefit-badge .inline-edit,
+.presale-foreon .pf-tags .inline-edit {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.presale-foreon .pf-actions .inline-edit:focus,
+.presale-foreon .pf-benefit-badge .inline-edit:focus,
+.presale-foreon .pf-tags .inline-edit:focus {
+  background: rgba(255, 255, 255, 0.12) !important;
+}
+.presale-foreon .inline-edit:empty::before {
+  color: var(--pf-subtle);
+  opacity: 0.7;
+}
+/* 사진 위 장수·링크 칩 */
+.presale-foreon .pf-media-chip {
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+.presale-foreon .pf-media-chip-lg {
+  padding: 0.5rem 0.75rem;
+  font-size: 13px;
+}
+
+/* 항목 제거 × — 흰 원 뱃지 대신 고스트. 행(group/edit)에서는 호버 시에만. */
+.presale-foreon .pf-edit-x {
+  display: inline-flex;
+  height: 2.75rem;
+  width: 2.75rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--pf-subtle);
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1;
+  opacity: 0.45;
+  transition: opacity 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+}
+.presale-foreon .group\/edit > .pf-edit-x,
+.presale-foreon .group\/edit .pf-edit-x {
+  opacity: 0;
+}
+.presale-foreon .group\/edit:hover .pf-edit-x,
+.presale-foreon .group\/edit:focus-within .pf-edit-x,
+.presale-foreon .pf-edit-x:focus-visible {
+  opacity: 1;
+}
+.presale-foreon .pf-edit-x:hover,
+.presale-foreon .pf-edit-x:focus-visible {
+  background: rgba(255, 138, 147, 0.12);
+  color: var(--pf-danger);
+}
+/* 사진 위 등 미디어 오버레이용 — 살짝만 보이게 */
+.presale-foreon .pf-edit-x-on-media {
+  opacity: 0.8;
+  background: rgba(0, 0, 0, 0.4);
+  color: #fff;
+}
+.presale-foreon .pf-edit-x-on-media:hover,
+.presale-foreon .pf-edit-x-on-media:focus-visible {
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+}
+@media (hover: none) {
+  .presale-foreon .group\/edit .pf-edit-x { opacity: 0.55; }
+}
+
+/* position·display는 EditableImage가 유틸리티 클래스로 준다(absolute·flex로 바꿀 수 있게). */
+.presale-foreon .pf-img-edit { cursor: pointer; overflow: hidden; }
+.presale-foreon .pf-img-edit-badge {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.presale-foreon .pf-img-edit:hover .pf-img-edit-badge,
+.presale-foreon .pf-img-edit:focus-within .pf-img-edit-badge { opacity: 1; }
+
+/* ── FAQ: 번호 · 부드러운 열림/닫힘 ─────────────── */
+:root { interpolate-size: allow-keywords; }
+.presale-foreon .pf-faqs details > summary {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding-right: 2.5rem;
+}
+.presale-foreon .pf-faqs details > summary > span:last-of-type,
+.presale-foreon .pf-faqs details > summary .inline-edit {
+  min-width: 0;
+  flex: 1;
+}
+.presale-foreon .pf-faq-num {
+  flex: none;
+  min-width: 2ch;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+  color: var(--pf-subtle);
+}
+.presale-foreon .pf-faqs details::details-content {
+  block-size: 0;
+  overflow: clip;
+  opacity: 0;
+  transition: block-size 0.32s ease, opacity 0.32s ease, content-visibility 0.32s allow-discrete;
+}
+.presale-foreon .pf-faqs details[open]::details-content {
+  block-size: auto;
+  opacity: 1;
+}
+.presale-foreon .pf-faqs details > p { padding-left: 34px; }
+
+/* ── 히어로 서브 갤러리 ─────────────────────────── */
+.presale-foreon .pf-thumbs {
+  position: absolute;
+  z-index: 2;
+  right: max(20px, calc((100% - 1152px) / 2 + 16px));
+  bottom: 36px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  max-width: min(100% - 40px, 460px);
+  pointer-events: none;
+}
+.presale-foreon .pf-thumbs-edit { bottom: 96px; }
+.presale-foreon .pf-thumb-wrap,
+.presale-foreon .pf-thumb {
+  pointer-events: auto;
+}
+.presale-foreon .pf-thumb-wrap { position: relative; }
+.presale-foreon .pf-thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 52px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 10px;
+  background: rgba(16, 20, 30, 0.55);
+  cursor: pointer;
+  opacity: 0.72;
+  transition: opacity 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+.presale-foreon .pf-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.presale-foreon .pf-thumb:hover { opacity: 1; }
+.presale-foreon .pf-thumb[data-active="true"] {
+  opacity: 1;
+  border-color: rgba(163, 175, 255, 0.9);
+  transform: translateY(-2px);
+  box-shadow: 0 0 0 1px rgba(163, 175, 255, 0.35);
+}
+.presale-foreon .pf-thumb-add {
+  color: #fff;
+  font-size: 22px;
+  line-height: 1;
+  border-style: dashed;
+  opacity: 0.85;
+}
+@media (max-width: 767px) {
+  .presale-foreon .pf-thumbs {
+    right: 12px;
+    left: 12px;
+    bottom: calc(12px + var(--pf-dock-reserve));
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    max-width: none;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    gap: 8px;
+  }
+  .presale-foreon .pf-thumbs::-webkit-scrollbar { display: none; }
+  .presale-foreon .pf-thumbs-edit { bottom: calc(12px + var(--pf-dock-reserve)); }
+  .presale-foreon .pf-thumb { width: 48px; height: 48px; flex-shrink: 0; }
+  .presale-foreon .pf-stage:has(.pf-thumbs) .pf-scroll-hint { display: none; }
+}
+.presale-foreon .pf-track[data-narrow="true"] .pf-thumbs {
+  right: 12px;
+  left: 12px;
+  bottom: calc(12px + var(--pf-dock-reserve));
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+  max-width: none;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  gap: 8px;
+}
+.presale-foreon .pf-track[data-narrow="true"] .pf-thumbs::-webkit-scrollbar { display: none; }
+.presale-foreon .pf-track[data-narrow="true"] .pf-thumbs-edit { bottom: calc(12px + var(--pf-dock-reserve)); }
+.presale-foreon .pf-track[data-narrow="true"] .pf-thumb { width: 48px; height: 48px; flex-shrink: 0; }
+.presale-foreon .pf-track[data-narrow="true"] .pf-stage:has(.pf-thumbs) .pf-scroll-hint { display: none; }
+
+/* ── 스크롤 등장 ──────────────────────────────── */
+.presale-foreon [data-reveal="pending"] {
+  opacity: 0;
+  transform: translateY(28px);
+}
+.presale-foreon [data-reveal="in"] {
+  opacity: 1;
+  transform: none;
+  transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .presale-foreon [data-reveal] { opacity: 1; transform: none; transition: none; }
+  .presale-foreon .pf-faqs details::details-content { transition: none; }
+}
+/* ── 공개 페이지: 부드러운 앵커 스크롤 ─────────── */
+html:has(.presale-foreon) { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) {
+  html:has(.presale-foreon) { scroll-behavior: auto; }
+}
+
+/* ── 편집 캔버스: 빈 이미지 칸 · 업로드 중 · 히어로 장면 교체 ── */
+.presale-foreon .pf-img-empty {
+  border: 1.5px dashed rgba(255, 255, 255, 0.28);
+  background: var(--pf-ui);
+  color: var(--pf-subtle);
+  text-align: center;
+  font-size: 14px;
+}
+.presale-foreon .pf-img-empty:hover { border-color: var(--pf-accent-text); color: var(--pf-ink); }
+.presale-foreon .pf-img-empty-body { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px; }
+.presale-foreon .pf-img-empty-plus { font-size: 28px; line-height: 1; }
+.presale-foreon .pf-img-edit-badge-empty { background: transparent; }
+.presale-foreon .pf-img-empty .pf-img-edit-badge-empty { display: none; }
+.presale-foreon .pf-img-uploading {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.62);
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+}
+.presale-foreon .pf-scene-edit {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  cursor: pointer;
+}
+.presale-foreon .pf-scene-edit-badge {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 16px;
+  border-radius: 32px;
+  background: rgba(0, 0, 0, 0.55);
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.presale-foreon .pf-scene-edit:hover .pf-scene-edit-badge,
+.presale-foreon .pf-scene-edit:focus-within .pf-scene-edit-badge { opacity: 1; }
+.presale-foreon[data-editing] .pf-copy { pointer-events: none; }
+.presale-foreon[data-editing] .pf-copy :is(a, button, label, input, [role="textbox"]) { pointer-events: auto; }

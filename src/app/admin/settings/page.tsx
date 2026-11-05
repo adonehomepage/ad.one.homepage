@@ -12,6 +12,8 @@ import { SettingsForm } from "@/app/admin/settings/settings-form";
 import { EmptyState } from "@/components/ui/empty-state";
 import { auditActionLabel, auditResourceLabel, orgText } from "@/modules/admin/org-copy";
 
+export const metadata = { title: "설정" };
+
 const AUDIT_PAGE_SIZE = 50;
 
 export default async function SettingsPage() {

@@ -7,7 +7,10 @@ import { appConfig } from "@/lib/config";
 import { addCalendarMonths } from "@/lib/datetime";
 import { orgText } from "@/modules/admin/org-copy";
 import { writeAudit } from "@/modules/audit/service";
-import { buildSnapshot, getDraft, getProject, mapSectionRow } from "@/modules/projects/service";
+import { buildSnapshot, checkSlugAvailable, getDraft, getProject, mapSectionRow } from "@/modules/projects/service";
+import { clampLaunchExcludedSection, clampLaunchExcludedSnapshot } from "@/modules/sections/duplicate";
+import { assertPublishable } from "@/modules/publishing/validate-publish";
+import { normalizeFormSettings, normalizeGlobalSettings, normalizePrivacySettings, normalizeSectionContent } from "@/modules/templates/definitions";
 import type { PageSection, PageSnapshot } from "@/types";
 
 function revalidatePublicSlug(slug: string) {
@@ -17,32 +20,6 @@ function revalidatePublicSlug(slug: string) {
 
 function chrome(settings: Record<string, unknown> | undefined, key: string, fallback: string) {
   return String(settings?.[key] ?? "").trim() || fallback;
-}
-
-function validatePublish(snapshot: PageSnapshot, firstPublish: boolean) {
-  const g = snapshot.globalSettings;
-  const errors: string[] = [];
-  if (!snapshot.projectName.trim()) errors.push(chrome(g, "publishErrName", "프로젝트명이 필요합니다."));
-  if (!snapshot.publicSlug.trim()) errors.push(chrome(g, "publishErrSlug", "공개 URL이 필요합니다."));
-  const hero = snapshot.sections.find((section) => section.sectionType === "hero" && section.isVisible);
-  if (!hero) errors.push(chrome(g, "publishErrHero", "히어로 섹션이 필요합니다."));
-  const form = snapshot.sections.find((section) => section.sectionType === "lead_form" && section.isVisible);
-  if (!form) errors.push(chrome(g, "publishErrForm", "관심고객 등록 섹션이 필요합니다."));
-  const legal = snapshot.sections.find((section) => section.sectionType === "legal" && section.isVisible);
-  if (!legal) errors.push(chrome(g, "publishErrLegal", "법적 고지 섹션을 숨길 수 없습니다."));
-  if (!snapshot.privacy.collectingControllerName.trim()) errors.push(chrome(g, "publishErrController", "개인정보 수집 주체를 입력해 주세요."));
-  if (!snapshot.formSettings.fields.some((field) => field.type === "name" && field.required)) {
-    errors.push(chrome(g, "publishErrNameField", "이름 필수 필드가 필요합니다."));
-  }
-  if (!snapshot.formSettings.fields.some((field) => field.type === "phone" && field.required)) {
-    errors.push(chrome(g, "publishErrPhoneField", "연락처 필수 필드가 필요합니다."));
-  }
-  if (firstPublish && snapshot.privacy.collectingControllerName === "처리주체미정" && appConfig.env === "production") {
-    errors.push(chrome(g, "publishErrControllerProd", "실제 개인정보 처리 주체를 설정한 뒤에 발행할 수 있습니다."));
-  }
-  if (errors.length) {
-    throw new ApiError("PUBLISH_VALIDATION_FAILED", errors.join(" "));
-  }
 }
 
 export async function publishProject(input: {
@@ -59,9 +36,12 @@ export async function publishProject(input: {
     throw new ApiError("FORBIDDEN", orgText("publishDeleted"));
   }
 
+  // product-spec §13.2: 발행 직전 공개 slug 중복을 재확인한다 (자기 프로젝트는 제외).
+  await checkSlugAvailable(project.publicSlug, project.id);
+
   const snapshot = await buildSnapshot(input.organizationId, input.projectId);
   const firstPublish = !project.publishedAt;
-  validatePublish(snapshot, firstPublish);
+  assertPublishable(snapshot);
 
   const latest = await db
     .select({ versionNumber: projectVersions.versionNumber })
@@ -160,40 +140,49 @@ export async function restoreVersion(input: {
 
   await db.transaction(async (tx) => {
     await tx.delete(projectSections).where(eq(projectSections.projectId, input.projectId));
+    // 스냅샷 section.id를 유지해 root/source 그래프가 깨지지 않게 한다. FAQ·gallery는 출시 제외로 clamp.
     await tx.insert(projectSections).values(
-      snapshot.sections.map((section: PageSection) => ({
-        id: crypto.randomUUID(),
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        rootSectionId: section.rootSectionId,
-        sourceSectionId: section.sourceSectionId,
-        sectionType: section.sectionType,
-        title: section.title,
-        contentJson: section.content,
-        settingsJson: section.settings,
-        anchorId: section.anchorId,
-        gnbLabel: section.gnbLabel,
-        sortOrder: section.sortOrder,
-        isOriginal: section.isOriginal,
-        isRequired: section.isRequired,
-        isVisible: section.isVisible,
-        showInGnb: section.showInGnb,
-        createdBy: input.userId,
-      })),
+      snapshot.sections.map((section: PageSection) => {
+        const clamped = clampLaunchExcludedSection(section, {
+          templateCode: snapshot.templateCode,
+        });
+        return {
+          id: section.id,
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          rootSectionId: section.rootSectionId,
+          sourceSectionId: section.sourceSectionId,
+          sectionType: section.sectionType,
+          title: section.title,
+          contentJson: normalizeSectionContent(clamped.sectionType, (section.content ?? {}) as Record<string, unknown>),
+          settingsJson: section.settings,
+          anchorId: section.anchorId,
+          gnbLabel: section.gnbLabel,
+          sortOrder: section.sortOrder,
+          isOriginal: section.isOriginal,
+          isRequired: section.isRequired,
+          isVisible: clamped.isVisible,
+          showInGnb: clamped.showInGnb,
+          createdBy: input.userId,
+        };
+      }),
     );
+    const restoredGlobals = normalizeGlobalSettings((snapshot.globalSettings ?? {}) as Record<string, unknown>);
+    const restoredForm = normalizeFormSettings(snapshot.formSettings);
+    const restoredPrivacy = normalizePrivacySettings(snapshot.privacy);
     await tx
       .update(projectDrafts)
       .set({
-        globalSettings: snapshot.globalSettings,
-        formSettings: snapshot.formSettings,
+        globalSettings: restoredGlobals,
+        formSettings: restoredForm,
         seoSettings: snapshot.seoSettings,
-        privacySettings: snapshot.privacy,
+        privacySettings: restoredPrivacy,
         revision: project.draftRevision + 1,
         updatedBy: input.userId,
         updatedAt: new Date(),
       })
       .where(eq(projectDrafts.projectId, input.projectId));
-    const siteName = String(snapshot.globalSettings.siteName ?? snapshot.projectName ?? "").trim();
+    const siteName = String(restoredGlobals.siteName ?? snapshot.projectName ?? "").trim();
     await tx
       .update(projects)
       .set({
@@ -384,7 +373,8 @@ export async function getPublishedBySlug(slugNormalized: string) {
   if (project.expiresAt && project.expiresAt <= new Date()) return null;
   const [version] = await db.select().from(projectVersions).where(eq(projectVersions.id, project.currentPublishedVersionId)).limit(1);
   if (!version) return null;
-  return { project, snapshot: version.snapshotJson as PageSnapshot, version };
+  // 구버전 발행 JSON에 FAQ·gallery가 남아 있어도 공개·리드·분석 경로에서는 숨긴다.
+  return { project, snapshot: clampLaunchExcludedSnapshot(version.snapshotJson as PageSnapshot), version };
 }
 
 export { mapSectionRow, advertiserRecipients };

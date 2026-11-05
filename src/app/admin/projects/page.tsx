@@ -13,6 +13,8 @@ import { CopyUrlButton } from "@/components/ui/copy-url-button";
 import { orgText } from "@/modules/admin/org-copy";
 import { ProjectRowActions } from "@/app/admin/projects/project-row-actions";
 import { ProjectMoreFilter } from "@/app/admin/projects/status-filter";
+
+export const metadata = { title: "홈페이지" };
 import { cn } from "@/lib/cn";
 
 const STATUS_FILTERS = [
@@ -52,13 +54,13 @@ export default async function ProjectsPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-end justify-between gap-4">
+      <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold tracking-tight">{orgText("navProjects")}</h1>
           <p className="mt-1 text-sm text-text-body">{orgText("projectsBody")}</p>
         </div>
         <Link href="/admin/projects/new">
-          <Button className="h-9 px-4 text-sm" data-testid="create-project-nav">{orgText("createProject")}</Button>
+          <Button data-testid="create-project-nav">{orgText("createProject")}</Button>
         </Link>
       </div>
       <div className="flex flex-wrap items-center gap-1.5">

@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/cn";
+import { Button, ButtonScaleProvider } from "@/components/ui/button";
 import { orgText } from "@/modules/admin/org-copy";
 
 const NAV = [
@@ -77,7 +78,7 @@ export function AdminShell({
         onClick={onNavigate}
         aria-current={active ? "page" : undefined}
         className={cn(
-          "block rounded-[10px] px-3 py-2 text-sm font-medium",
+          "block rounded-[14px] px-3 py-2 text-sm font-medium",
           active ? "bg-primary-soft text-primary-soft-foreground" : "text-text-body hover:bg-surface",
         )}
       >
@@ -87,7 +88,8 @@ export function AdminShell({
   }
 
   return (
-    <div className="min-h-screen bg-surface">
+    <ButtonScaleProvider scale="sm">
+      <div className="admin-compact min-h-screen bg-surface">
       <a
         href="#admin-main"
         className="absolute left-4 top-4 z-50 -translate-y-[200%] rounded-[14px] bg-primary px-4 py-3 text-[17px] font-semibold text-white focus:translate-y-0"
@@ -103,30 +105,24 @@ export function AdminShell({
       <div className="md:pl-60">
         <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-border bg-white/75 px-6 backdrop-blur-md md:px-8">
           <div className="flex min-w-0 items-center gap-3">
-            <button
-              type="button"
-              className="rounded-[10px] border border-border bg-white/80 px-3 py-2 text-sm md:hidden"
+            <Button
+              variant="ghost"
+              className="md:hidden"
               aria-expanded={menuOpen}
               aria-controls="admin-mobile-nav"
               aria-label={orgText("navMenu")}
               onClick={() => setMenuOpen((open) => !open)}
             >
               {orgText("navMenu")}
-            </button>
+            </Button>
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{organizationName}</p>
               <p className="truncate text-xs text-text-muted">{userName}</p>
             </div>
           </div>
-          <button
-            className="shrink-0 text-sm text-text-body hover:text-text-primary disabled:opacity-50"
-            onClick={() => void logout()}
-            type="button"
-            disabled={loggingOut}
-            data-testid="logout"
-          >
+          <Button variant="ghost" className="shrink-0" onClick={() => void logout()} disabled={loggingOut} data-testid="logout">
             {loggingOut ? orgText("busy") : orgText("logout")}
-          </button>
+          </Button>
         </header>
         {menuOpen ? (
           <nav id="admin-mobile-nav" className="space-y-1 border-b border-border bg-white px-4 py-3 md:hidden" aria-label={orgText("navMenu")}>
@@ -134,10 +130,11 @@ export function AdminShell({
             {items.map((item) => navLink(item, () => setMenuOpen(false)))}
           </nav>
         ) : null}
-        <main id="admin-main" className="admin-compact px-6 py-6 md:px-8" tabIndex={-1}>
+        <main id="admin-main" className="px-6 py-6 md:px-8" tabIndex={-1}>
           {children}
         </main>
       </div>
-    </div>
+      </div>
+    </ButtonScaleProvider>
   );
 }

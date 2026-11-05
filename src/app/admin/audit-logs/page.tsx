@@ -1,8 +1,9 @@
-import Link from "next/link";
 import { getAuthContext, isSystemAdmin } from "@/lib/auth/session";
 import { redirect } from "next/navigation";
 import { AuditLogsView } from "@/app/admin/settings/page";
 import { orgText } from "@/modules/admin/org-copy";
+
+export const metadata = { title: "활동 로그" };
 
 export default async function AuditPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const ctx = await getAuthContext();

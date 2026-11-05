@@ -1,0 +1,72 @@
+/**
+ * 애드잇 루트 Tailwind preflight(`p { margin:0 }` 등)가 지운 UA 기본값을
+ * midday 범위에서만 복원한다.
+ *
+ * 특이도 (0,0,1): preflight와 같고 이 파일이 뒤에 로드되어 이김.
+ * 원본 `.lc-*` / `.presale-*` (0,1,0+) 규칙에는 항상 짐.
+ * 원본 midday/presale CSS 파일은 수정하지 않는다.
+ *
+ * figure: 직방 앱은 Tailwind로 figure margin=0 → 히어로가 풀블리드.
+ * 텍스트(p/h*)만 UA 마진을 되돌리고, 이미지 슬롯(.presale-shot)은 0으로 맞춘다.
+ */
+
+:where(.midday-landing) p,
+:where(.midday-landing) h1,
+:where(.midday-landing) h2,
+:where(.midday-landing) h3,
+:where(.midday-landing) h4,
+:where(.midday-landing) h5,
+:where(.midday-landing) h6,
+:where(.midday-landing) blockquote,
+:where(.midday-landing) dl {
+  margin-block: revert;
+  margin-inline: revert;
+}
+
+:where(.midday-landing) .presale-shot,
+:where(.midday-landing) .presale-editable-image {
+  margin: 0;
+}
+
+/* 히어로 슬롯: 1:1 aspect가 absolute fill을 깨지 않게 */
+:where(.midday-landing) .lc-hero__img .presale-shot,
+:where(.midday-landing) .lc-hero__img .presale-editable-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  margin: 0;
+  border-radius: 0;
+}
+
+:where(.midday-landing) ol,
+:where(.midday-landing) ul,
+:where(.midday-landing) menu {
+  list-style: revert;
+  margin-block: revert;
+  padding-inline-start: revert;
+}
+
+:where(.midday-landing) img,
+:where(.midday-landing) svg,
+:where(.midday-landing) video,
+:where(.midday-landing) canvas,
+:where(.midday-landing) audio,
+:where(.midday-landing) iframe,
+:where(.midday-landing) embed,
+:where(.midday-landing) object {
+  display: revert;
+  max-width: revert;
+  height: revert;
+  vertical-align: revert;
+}
+
+:where(.midday-landing) b,
+:where(.midday-landing) strong {
+  font-weight: revert;
+}
+
+:where(.midday-landing) small {
+  font-size: revert;
+}

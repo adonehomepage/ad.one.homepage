@@ -8,10 +8,13 @@ import { appConfig } from "@/lib/config";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { VersionCard } from "@/app/admin/projects/[projectId]/versions/version-card";
+import { displayChrome } from "@/modules/admin/org-copy";
 import type { PageSnapshot } from "@/types";
 
+export const metadata = { title: "버전 기록" };
+
 function versionText(settings: Record<string, unknown>, key: string, fallback: string) {
-  return String(settings[key] ?? "").trim() || fallback;
+  return displayChrome(String(settings[key] ?? ""), fallback);
 }
 
 export default async function VersionsPage({ params }: { params: Promise<{ projectId: string }> }) {

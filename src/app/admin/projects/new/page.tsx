@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { DialogBody, DialogFooter, DialogHeader, DialogShell } from "@/components/ui/dialog-shell";
 import { Field, Input } from "@/components/ui/input";
-import { createTemplateSections, templateCatalog } from "@/modules/templates/definitions";
+import { createTemplateSections, sampleGlobalExtras, templateCatalog } from "@/modules/templates/definitions";
+import { SAMPLE_SITE } from "@/modules/templates/sample-site";
 import { newProjectDraftParts } from "@/modules/projects/draft-defaults";
 import { LandingPage } from "@/modules/templates/render/landing-page";
 import type { PageSnapshot, TemplateCode } from "@/types";
@@ -14,6 +15,9 @@ import { cn } from "@/lib/cn";
 import { useDialogFocusTrap } from "@/lib/a11y/dialog-focus";
 import { validateSlug } from "@/lib/validation/slug";
 import { formatPhoneInput } from "@/lib/validation/phone";
+import { applySiteIdentity, defaultMiddayPresaleData, MIDDAY_DATA_KEY } from "@/modules/templates/midday-origin/midday-data";
+import { applyOakSiteIdentity, OAK_DATA_KEY } from "@/modules/templates/oak-editorial/oak-data";
+import { defaultOakEditorialData } from "@/modules/templates/oak-editorial/default-data";
 
 const PICKER_SETTINGS = newProjectDraftParts({ name: "", phone: "" }).globalSettings as Record<string, unknown>;
 
@@ -29,12 +33,11 @@ export default function NewProjectPage() {
   const [phone, setPhone] = useState("");
   const [orgMonths, setOrgMonths] = useState(3);
   const [durationMonths, setDurationMonths] = useState(3);
-  const [templateCode, setTemplateCode] = useState<TemplateCode>("image-focus");
+  const [templateCode, setTemplateCode] = useState<TemplateCode>("foreon");
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [slugError, setSlugError] = useState("");
-  const [slugChecking, setSlugChecking] = useState(false);
   const [loading, setLoading] = useState(false);
   const slugTimerRef = useRef<number | null>(null);
   const slugAbortRef = useRef<AbortController | null>(null);
@@ -74,39 +77,89 @@ export default function NewProjectPage() {
   const selected = catalog.find((template) => template.code === templateCode) ?? catalog[0];
 
   const preview = useMemo<PageSnapshot>(() => {
-    const projectName = name || pickerText("pickerPreviewName", "현장명");
+    const projectName =
+      name.trim() || (templateCode === "oak-editorial" ? "임시 현장" : "광안 센텀 비스타동원");
     const draft = newProjectDraftParts({ name: projectName, phone });
-    const popup = draft.globalSettings.popup;
+    const popup = draft.globalSettings.popup as Record<string, unknown> | undefined;
+    let globalSettings: Record<string, unknown> = {
+      ...draft.globalSettings,
+      popup: { ...popup, enabled: false },
+    };
+    if (templateCode === "midday" || templateCode === "info") {
+      const midday = applySiteIdentity(defaultMiddayPresaleData(), {
+        siteName: projectName,
+        phone: phone.trim() || undefined,
+      });
+      // 선택 화면 미리보기에서는 이벤트 팝업을 끄고 본문만 비교한다.
+      midday.popup = { ...midday.popup, enabled: false };
+      globalSettings = {
+        ...globalSettings,
+        [MIDDAY_DATA_KEY]: midday,
+        siteName: projectName,
+        phone: midday.gnb.phone,
+      };
+    }
+    if (templateCode === "oak-editorial") {
+      // 이름 미입력 시 기본 가상 현장 + 프리미엄 화보형 샘플
+      const oak = name.trim()
+        ? applyOakSiteIdentity(defaultOakEditorialData(), { siteName: name.trim() })
+        : defaultOakEditorialData();
+      globalSettings = {
+        ...globalSettings,
+        [OAK_DATA_KEY]: oak,
+        siteName: oak.brandName,
+        logoUrl: oak.logoUrl,
+      };
+    }
     return {
       templateCode,
       projectName,
       publicSlug: publicSlug || "preview",
-      phone,
-      globalSettings: { ...draft.globalSettings, popup: { ...popup, enabled: false } },
+      phone: String(globalSettings.phone ?? ""),
+      globalSettings,
       formSettings: draft.formSettings,
       seoSettings: draft.seoSettings,
       privacy: draft.privacySettings,
-      sections: createTemplateSections(templateCode, "preview", draft.globalSettings).map((section) =>
-        section.sectionType === "hero" ? { ...section, content: { ...section.content, headline: projectName } } : section,
+      sections: createTemplateSections(
+        templateCode,
+        "preview",
+        {
+          ...sampleGlobalExtras(),
+          ...globalSettings,
+        },
+        { stableIds: true },
+      ).map((section) =>
+        section.sectionType === "hero"
+          ? {
+              ...section,
+              content:
+                templateCode === "oak-editorial"
+                  ? section.content
+                  : { ...section.content, headline: projectName },
+            }
+          : section,
       ),
     };
   }, [templateCode, name, publicSlug, phone]);
 
   function checkSlugLocal(value: string) {
     const result = validateSlug(value);
-    setSlugError(result.ok ? "" : result.message);
+    if (!result.ok) setSlugError(result.message);
     return result.ok;
   }
 
   async function checkSlugRemote(value: string) {
-    if (!checkSlugLocal(value)) return false;
     slugAbortRef.current?.abort();
+    if (!checkSlugLocal(value)) {
+      slugAbortRef.current = null;
+      return false;
+    }
     const controller = new AbortController();
     slugAbortRef.current = controller;
-    setSlugChecking(true);
     try {
       const res = await fetch(`/api/projects/check-slug?value=${encodeURIComponent(value)}`, { signal: controller.signal });
       const json = await res.json();
+      if (slugAbortRef.current !== controller) return false;
       if (!res.ok) {
         setSlugError(json.message ?? pickerText("pickerFail", "만들지 못했습니다."));
         return false;
@@ -116,8 +169,6 @@ export default function NewProjectPage() {
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return false;
       return true;
-    } finally {
-      if (slugAbortRef.current === controller) setSlugChecking(false);
     }
   }
 
@@ -193,7 +244,7 @@ export default function NewProjectPage() {
           <p className="shrink-0 border-b border-white/10 px-4 py-3 text-[11px] font-bold uppercase tracking-[0.2em] text-white/40">
             {pickerText("pickerCount", "템플릿 {count}").replace("{count}", String(catalog.length))}
           </p>
-          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 pb-4" role="listbox" aria-label={pickerText("pickerTitle", "템플릿 선택")}>
+          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-3" role="listbox" aria-label={pickerText("pickerTitle", "템플릿 선택")}>
             {catalog.map((template) => {
               const active = template.code != null && template.code === templateCode;
               return (
@@ -202,30 +253,34 @@ export default function NewProjectPage() {
                   type="button"
                   role="option"
                   aria-selected={active}
+                  aria-disabled={template.comingSoon || undefined}
+                  disabled={template.comingSoon}
+                  title={template.comingSoon ? pickerText("pickerComingSoon", "오픈 대기 중이에요. 준비되는 대로 바로 안내드릴게요.") : undefined}
                   onClick={() => {
-                    if (!template.code || template.comingSoon) {
-                      setNotice(pickerText("pickerComingSoon", "오픈 대기 중이에요. 준비되는 대로 바로 안내드릴게요."));
-                      return;
-                    }
+                    if (!template.code || template.comingSoon) return;
                     setNotice("");
                     setTemplateCode(template.code);
                   }}
                   className={cn(
                     "flex w-full items-start gap-3 rounded-[16px] border px-3 py-3 text-left",
                     template.comingSoon
-                      ? "border-white/5 bg-white/5 opacity-70"
+                      ? "cursor-not-allowed border-white/5 bg-white/5 opacity-70"
                       : active
                         ? "border-primary/60 bg-primary/15"
                         : "border-transparent hover:bg-white/5",
                   )}
                 >
-                  <span className={cn("mt-0.5 h-14 w-11 shrink-0 rounded-[14px] bg-white/10 ring-1 ring-white/10", template.comingSoon && "opacity-60")} aria-hidden>
+                  <span className={cn("h-14 w-11 shrink-0 rounded-[14px] bg-white/10 ring-1 ring-white/10", template.comingSoon && "opacity-60")} aria-hidden>
                     <span className={cn("block h-full w-full rounded-[14px]", active ? "bg-primary/40" : "bg-white/10")} />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="flex flex-wrap items-center gap-2">
+                    <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                       <span className={cn("text-sm font-bold leading-tight", template.comingSoon ? "text-white/55" : active ? "text-primary" : "text-white")}>{template.name}</span>
-                      {template.comingSoon ? <span className="rounded-[8px] bg-white/10 px-2 py-1 text-[10px] font-semibold text-white/70">{pickerText("pickerSoon", "오픈 대기")}</span> : null}
+                      {template.comingSoon ? (
+                        <span className="rounded-[6px] bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white/70">
+                          {pickerText("pickerSoon", "오픈 대기")}
+                        </span>
+                      ) : null}
                     </span>
                     <span className={cn("mt-1 block text-xs leading-snug", template.comingSoon ? "text-white/35" : "text-white/50")}>{template.description}</span>
                   </span>
@@ -240,12 +295,12 @@ export default function NewProjectPage() {
         </aside>
         <div className="min-h-0 overflow-auto bg-text-body">
           <div className="min-h-full bg-white">
-            <LandingPage snapshot={preview} mode="preview" />
+            <LandingPage key={preview.templateCode} snapshot={preview} mode="preview" />
           </div>
         </div>
       </div>
       {detailsOpen ? (
-        <DialogShell titleId="project-details-title" panelRef={detailsPanelRef} onClose={() => { if (!loading) setDetailsOpen(false); }} closeLabel={pickerText("pickerClose", "닫기")} closeDisabled={loading} size="md">
+        <DialogShell titleId="project-details-title" panelRef={detailsPanelRef} onClose={() => { if (!loading) setDetailsOpen(false); }} closeLabel={pickerText("pickerClose", "닫기")} closeDisabled={loading} closeOnOutside={false} size="md">
           <form
             className="flex min-h-0 flex-1 flex-col"
             onSubmit={(event) => {
@@ -268,17 +323,21 @@ export default function NewProjectPage() {
                   data-testid="project-name"
                 />
               </Field>
-              <Field label={pickerText("pickerSlug", "공개 URL 텍스트")} hint={pickerText("pickerSlugHint", "한글, 영문, 숫자, 하이픈. 예: lumiere-central")}>
+              <Field label={pickerText("pickerSlug", "공개 URL 텍스트")} hint={pickerText("pickerSlugHint", "한글, 영문, 숫자, 하이픈. 예: gwang-an-centum")}>
                 <Input
                   id="project-slug"
                   name="publicSlug"
                   autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  className="h-12"
                   required
                   value={publicSlug}
                   onChange={(event) => {
                     const value = event.target.value;
                     setPublicSlug(value);
-                    if (slugError) checkSlugLocal(value);
+                    checkSlugLocal(value);
                     scheduleSlugCheck(value);
                   }}
                   onBlur={(event) => {
@@ -290,12 +349,8 @@ export default function NewProjectPage() {
                   data-testid="project-slug"
                 />
                 {slugError ? (
-                  <p id="project-slug-error" className="mt-2 text-sm text-danger" role="alert" data-testid="project-slug-error">
+                  <p id="project-slug-error" className="text-sm text-danger" role="alert" data-testid="project-slug-error">
                     {slugError}
-                  </p>
-                ) : slugChecking ? (
-                  <p className="mt-2 text-sm text-text-muted" role="status">
-                    {pickerText("pickerSlugChecking", "주소 확인 중…")}
                   </p>
                 ) : null}
               </Field>

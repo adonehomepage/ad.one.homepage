@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getDraft, getProject } from "@/modules/projects/service";
 import { getAuthContext } from "@/lib/auth/session";
@@ -8,10 +9,22 @@ import { formatSeoul, formatSeoulDate } from "@/lib/datetime";
 import { appConfig } from "@/lib/config";
 import { ProjectActions } from "@/app/admin/projects/[projectId]/project-actions";
 import { featureFlags } from "@/lib/feature-flags";
-import { orgText } from "@/modules/admin/org-copy";
+import { displayChrome, orgText } from "@/modules/admin/org-copy";
+
+export async function generateMetadata({ params }: { params: Promise<{ projectId: string }> }): Promise<Metadata> {
+  const ctx = await getAuthContext();
+  if (!ctx) return { title: "홈페이지" };
+  const { projectId } = await params;
+  try {
+    const { project } = await getProject(ctx.organization.id, projectId);
+    return { title: project.name };
+  } catch {
+    return { title: "홈페이지" };
+  }
+}
 
 function projectText(settings: Record<string, unknown>, key: string, fallback: string) {
-  return String(settings[key] ?? "").trim() || fallback;
+  return displayChrome(String(settings[key] ?? ""), fallback);
 }
 
 export default async function ProjectDetailPage({ params }: { params: Promise<{ projectId: string }> }) {
@@ -62,7 +75,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
           {text("shellVersions", "버전 기록")}
         </Link>
         <Link href={`/admin/projects/${project.id}/recipients`} className="ui-chip" data-testid="open-recipients">
-          {text("shellRecipients", "광고주 수신자")}
+          {text("shellRecipients", "알림 수신자")}
         </Link>
         {flags.leadAdmin ? (
           <Link href={`/admin/projects/${project.id}/leads`} className="ui-chip" data-testid="open-leads">

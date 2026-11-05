@@ -1,5 +1,20 @@
-@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css");
 @import "tailwindcss";
+
+@font-face {
+  font-family: "Pretendard Variable";
+  src: url("/fonts/pretendard.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: Pretendard;
+  src: url("/fonts/pretendard.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
 
 @theme inline {
   --color-primary: #3182f6;
@@ -31,6 +46,20 @@ select {
   font-family: inherit;
 }
 
+button:not(:disabled),
+a[href],
+summary,
+[role="switch"],
+[role="button"],
+label {
+  cursor: pointer;
+}
+
+button:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
 .inline-edit:empty::before {
   content: attr(data-placeholder);
   opacity: 0.55;
@@ -41,7 +70,7 @@ select {
   border: 1px solid var(--color-border);
   border-radius: 16px;
   background-color: #fff;
-  padding: 1.25rem;
+  padding: 2rem;
 }
 
 @utility ui-table {
@@ -70,26 +99,6 @@ select {
   color: var(--color-text-body);
 }
 
-.admin-compact .ui-field {
-  min-height: 36px;
-  height: 36px;
-  padding: 0 12px;
-  font-size: 14px;
-}
-
-.admin-compact select.ui-field {
-  height: 36px;
-  line-height: 36px;
-  padding-right: 36px;
-  background-position: right 12px center;
-}
-
-.admin-compact textarea.ui-field {
-  height: auto;
-  min-height: 5.5rem;
-  padding: 10px 12px;
-}
-
 @utility ui-field {
   min-height: 48px;
   width: 100%;
@@ -115,6 +124,78 @@ select {
     outline-offset: 2px;
     border-color: var(--color-primary);
   }
+}
+
+/* 관리자 목록·헤더·표. 로그인·편집기 주요 버튼(48px)보다 작게, 같은 줄은 같은 높이. */
+.admin-compact .ui-card {
+  padding: 1.25rem 1.5rem;
+}
+
+.admin-compact input.ui-field,
+.admin-compact select.ui-field {
+  min-height: 36px;
+  border-radius: 14px;
+  padding: 0 12px;
+  font-size: 14px;
+}
+
+.admin-compact select.ui-field {
+  line-height: 34px;
+  padding-right: 32px;
+  background-position: right 10px center;
+  background-size: 14px 14px;
+}
+
+/* 편집기 태블릿·모바일 프레임. position:fixed 는 창 전체가 아니라 보이는 프레임에 붙인다. */
+[data-device-frame] .presale-modal-overlay,
+[data-device-frame] .presale-privacy-overlay,
+[data-device-frame] .presale-lightbox-backdrop,
+[data-device-frame] .presale-icon-picker-backdrop,
+[data-device-frame] .presale-float-dock-scrim,
+[data-device-frame] .fixed.inset-0 {
+  top: var(--device-top);
+  left: var(--device-left);
+  width: var(--device-width);
+  height: var(--device-height);
+  right: auto;
+  bottom: auto;
+}
+
+[data-device-frame] .midday-landing .presale-float-consultant-rail.lc-float-rail,
+[data-device-frame] .midday-landing.presale-preview-device--mobile .presale-float-consultant-rail.lc-float-rail,
+[data-device-frame] .midday-landing.presale-preview-device--tablet .presale-float-consultant-rail.lc-float-rail,
+[data-device-frame] .presale-float-consultant-rail--compact {
+  right: calc(100vw - var(--device-right) + 12px);
+  bottom: calc(100dvh - var(--device-bottom) + 16px);
+}
+
+[data-device-frame] .oak-editorial-root[data-device="mobile"] .floating {
+  left: calc(var(--device-left) + 12px);
+  right: calc(100vw - var(--device-right) + 12px);
+  bottom: calc(100dvh - var(--device-bottom) + 12px);
+}
+
+[data-device-frame] .oak-editorial-root[data-device="tablet"] .floating {
+  left: auto;
+  right: calc(100vw - var(--device-right) + 24px);
+  bottom: calc(100dvh - var(--device-bottom) + 24px);
+}
+
+[data-device-frame] .oak-editorial-root .progress {
+  left: var(--device-left);
+  width: var(--device-width);
+}
+
+[data-device-frame] .presale-preview-device--mobile .presale-event-popup-stack,
+[data-device-frame] .presale-modal-overlay--mobile .presale-event-popup-stack {
+  --popup-w-fit: calc((var(--device-width) - 20px) / 400);
+  --popup-h-fit: calc((var(--device-height) - 28px) / 760);
+}
+
+[data-device-frame] .presale-preview-device--tablet .presale-event-popup-stack,
+[data-device-frame] .presale-modal-overlay--tablet .presale-event-popup-stack {
+  --popup-w-fit: calc((var(--device-width) - 28px) / 400);
+  --popup-h-fit: calc((var(--device-height) - 32px) / 760);
 }
 
 @media (prefers-reduced-motion: reduce) {
