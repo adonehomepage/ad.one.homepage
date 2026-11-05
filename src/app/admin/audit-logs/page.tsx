@@ -5,7 +5,11 @@ import { orgText } from "@/modules/admin/org-copy";
 
 export const metadata = { title: "활동 로그" };
 
-export default async function AuditPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+export default async function AuditPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; q?: string; action?: string; resource?: string }>;
+}) {
   const ctx = await getAuthContext();
   if (!ctx) redirect("/login");
   if (!isSystemAdmin(ctx.member)) redirect("/admin");
@@ -15,9 +19,9 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-bold tracking-tight">{orgText("navAudit")}</h1>
-        <p className="mt-2 text-sm text-text-body">{orgText("auditBody")}</p>
+        <p className="mt-1 text-sm text-text-body">{orgText("auditBody")}</p>
       </div>
-      <AuditLogsView page={page} basePath="/admin/audit-logs" />
+      <AuditLogsView page={page} basePath="/admin/audit-logs" q={params.q ?? ""} action={params.action ?? ""} resource={params.resource ?? ""} />
     </div>
   );
 }

@@ -68,6 +68,7 @@ export default async function ProjectLeadsPage({
       ) : (
         <LeadTable
           items={items}
+          showProject={false}
           labels={{
             time: text("shellLeadTime", "등록 일시"),
             project: text("shellLeadProject", "프로젝트"),

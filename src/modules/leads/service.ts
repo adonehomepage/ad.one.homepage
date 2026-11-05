@@ -201,10 +201,28 @@ export async function submitPublicLead(input: {
   return { id: lead.id };
 }
 
+export async function listLeadSites(organizationId: string) {
+  const rows = await db
+    .select({
+      id: projects.id,
+      name: projects.name,
+      slug: projects.publicSlug,
+      count: sql<number>`count(${leads.id})::int`,
+    })
+    .from(projects)
+    .leftJoin(leads, and(eq(leads.projectId, projects.id), sql`${leads.deletedAt} is null`))
+    .where(eq(projects.organizationId, organizationId))
+    .groupBy(projects.id, projects.name, projects.publicSlug)
+    .orderBy(desc(sql`count(${leads.id})`), projects.name);
+
+  return rows.map((row) => ({ ...row, count: Number(row.count) })).filter((row) => row.count > 0);
+}
+
 export async function listLeads(input: {
   organizationId: string;
   projectId?: string;
   q?: string;
+  source?: string;
   from?: Date;
   to?: Date;
   page?: number;
@@ -216,6 +234,11 @@ export async function listLeads(input: {
   if (input.projectId) filters.push(eq(leads.projectId, input.projectId));
   if (input.from) filters.push(gte(leads.submittedAt, input.from));
   if (input.to) filters.push(lte(leads.submittedAt, input.to));
+  if (input.source === "direct") {
+    filters.push(sql`(${leads.utmSource} is null or ${leads.utmSource} = 'direct')`);
+  } else if (input.source) {
+    filters.push(eq(leads.utmSource, input.source));
+  }
   if (input.q) {
     const safeQ = input.q.replace(/[%_\\]/g, "");
     const nameMatch = ilike(leads.name, `%${safeQ}%`);

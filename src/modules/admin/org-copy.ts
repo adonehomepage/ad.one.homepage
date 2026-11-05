@@ -49,6 +49,22 @@ export const orgCopy = {
   leadSearch: "이름 또는 전화번호",
   leadsEmpty: "관심고객이 등록되면 여기에 표시됩니다.",
   leadsEmptyTitle: "관심고객이 없습니다",
+  filterAllSites: "모든 현장",
+  filterAllSources: "모든 유입",
+  leadSiteOnly: "이 현장만 보기",
+  leadSiteMeta: "/{slug} · {n}명",
+  sourceDirect: "직접",
+  sourceNaver: "네이버",
+  sourceKakao: "카카오",
+  sourceInstagram: "인스타그램",
+  colWhen: "일시",
+  colChannel: "채널",
+  colNote: "내용",
+  colActor: "담당자",
+  colInquiry: "문의",
+  colKind: "알림",
+  colTarget: "대상",
+  leadGroupHint: "최근 {n}명만 표시합니다. 이 현장을 열면 전체를 볼 수 있습니다.",
   notificationsBody: "발송 실패는 관심고객 저장과 분리됩니다. 메시지 원문은 남기지 않습니다.",
   notificationsEmptyTitle: "알림 기록이 없습니다",
   filterAll: "전체",
@@ -63,6 +79,11 @@ export const orgCopy = {
   auditPageEmpty: "이전 페이지로 돌아가 보세요.",
   auditNavLabel: "활동 로그 페이지",
   auditActorUnknown: "알 수 없는 사용자",
+  auditSearch: "담당자, 현장, 활동",
+  auditFilterEmptyTitle: "조건에 맞는 활동이 없습니다",
+  auditFilterEmpty: "검색어나 필터를 바꿔 보세요.",
+  filterAllActions: "모든 활동",
+  filterAllResources: "모든 대상",
   retry: "재시도",
   retryFail: "재시도에 실패했습니다.",
   membersBody: "공개 회원가입은 없습니다. 초대를 받은 직원만 계정을 활성화할 수 있습니다.",
@@ -416,4 +437,19 @@ export function auditActionLabel(action: string) {
 export function auditResourceLabel(resourceType: string) {
   const key = AUDIT_RESOURCES[resourceType];
   return key ? orgText(key) : resourceType;
+}
+
+export function auditFilterOptions() {
+  return {
+    actions: Object.entries(AUDIT_ACTIONS).map(([value, key]) => ({ value, label: orgText(key) })),
+    resources: Object.entries(AUDIT_RESOURCES).map(([value, key]) => ({ value, label: orgText(key) })),
+  };
+}
+
+export function leadSourceLabel(source: string | null | undefined) {
+  if (!source || source === "direct") return orgText("sourceDirect");
+  if (source === "naver") return orgText("sourceNaver");
+  if (source === "kakao") return orgText("sourceKakao");
+  if (source === "instagram") return orgText("sourceInstagram");
+  return source;
 }

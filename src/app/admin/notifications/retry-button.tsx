@@ -29,7 +29,7 @@ export function RetryButton({ id }: { id: string }) {
   }
 
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className="flex flex-col items-start gap-1">
       <Button variant="soft" loading={loading} loadingLabel={orgText("busy")} onClick={() => void retry()} data-testid="notification-retry">
         {orgText("retry")}
       </Button>
