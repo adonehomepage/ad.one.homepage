@@ -59,6 +59,8 @@ export type OakEditorialData = {
     title: string;
     items: OakGalleryItem[];
     viewAllLabel: string;
+    /** 특장점 4장 맞춤을 한 번 적용했는지. 이후 삭제는 그대로 둔다. */
+    itemCapSettled?: boolean;
   };
   floorplan: {
     eyebrow: string;

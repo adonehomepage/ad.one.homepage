@@ -12,6 +12,7 @@ export function OakText({
   className,
   multiline = true,
   style,
+  placeholder,
 }: {
   value: string;
   editMode: boolean;
@@ -20,6 +21,7 @@ export function OakText({
   className?: string;
   multiline?: boolean;
   style?: CSSProperties;
+  placeholder?: string;
 }) {
   const ref = useRef<HTMLElement>(null);
   useEffect(() => {
@@ -61,6 +63,7 @@ export function OakText({
       style={style}
       contentEditable
       suppressContentEditableWarning
+      data-placeholder={placeholder}
       onBlur={onBlur}
       onKeyDown={(e) => {
         if (!multiline && e.key === "Enter") {
@@ -96,6 +99,7 @@ export function OakImage({
   className,
   objectPosition,
   exactPixels,
+  chrome,
 }: {
   url: string;
   alt: string;
@@ -105,6 +109,8 @@ export function OakImage({
   objectPosition?: string;
   /** 지정 시 업로드 이미지가 해당 픽셀 정사각이어야 한다 (로고 50). */
   exactPixels?: number;
+  /** hover면 갤러리 사진 위에 올렸을 때만 변경 버튼을 보여 준다. */
+  chrome?: "hover";
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const uploadCtx = usePresaleImageUpload();
@@ -118,6 +124,7 @@ export function OakImage({
 
   const hasUrl = Boolean(url?.trim());
   const showEditUi = editMode && editReady;
+  const hoverChrome = chrome === "hover";
 
   return (
     <span
@@ -148,8 +155,12 @@ export function OakImage({
         <>
           <button
             type="button"
-            className="pill"
-            style={{ position: "absolute", right: 12, top: 12, zIndex: 2, background: "var(--paper)" }}
+            className={hoverChrome ? "pill oak-image-hover" : "pill"}
+            style={
+              hoverChrome
+                ? undefined
+                : { position: "absolute", right: 12, top: 12, zIndex: 2, background: "var(--paper)" }
+            }
             disabled={uploading}
             onClick={(e) => {
               e.preventDefault();
